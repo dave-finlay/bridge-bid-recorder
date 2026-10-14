@@ -1,8 +1,11 @@
-// The app's screens and event handling. For now the app works on a single
-// scratch session; the list of sessions comes in step 4 of the plan.
+// The app's screens and event handling.
 //
 // The URL hash says which screen to show:
+//   (none)                       on opening: today's session, or the list
+//   #/sessions                   the list of sessions
+//   #/new                        the form for a new session
 //   #/s/<session id>             the session's board list
+//   #/s/<session id>/edit        the form for editing the session
 //   #/s/<session id>/b/<number>  the bidding screen for one board
 // Moving between screens replaces the URL instead of adding to browser
 // history: the app's own buttons are the way around.
@@ -10,6 +13,10 @@
 // Board numbers are unique within a session. Opening a board that hasn't
 // been recorded shows a blank "draft" board, which joins the session only
 // when its first call is entered. So browsing past boards adds nothing.
+//
+// On the bidding screen the chevrons move between boards, while the board
+// picker sets the number of the board on screen. For a blank board those
+// come to the same thing; a board with calls is renumbered.
 
 import {
   BIDS,
@@ -38,13 +45,14 @@ const SYMBOLS = { C: '♣︎', D: '♦︎', H: '♥︎', S: '♠︎', N: 'NT' };
 const CHEVRON_LEFT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
 const CHEVRON_RIGHT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>';
 const CHEVRON_DOWN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
-const PICKER_BOARDS = 36; // boards offered by the picker when the board count isn't known
-const SCRATCH_ID = 'scratch';
+const MAX_BOARDS = 36; // boards offered by pickers when the board count isn't known
 const ORDER_KEY = 'boardListOrder';
 const DELETE_WIDTH = 88; // px a row slides left to show its Delete button
 
+let screen; // 'sessions', 'new', 'edit', 'boards' or 'board'
+let sessions = []; // all sessions, newest first, on the list and form screens
 let session; // the session on screen, kept in step with storage
-let number = null; // the board number on the bidding screen, or null on the list
+let number = null; // the board number on the bidding screen
 let draft = null; // a board on screen that hasn't been recorded yet
 let listOrder = readListOrder(); // 'recent' or 'number'
 
@@ -65,17 +73,6 @@ function writeListOrder(order) {
   } catch {
     // Not remembered; it still applies until the app is closed.
   }
-}
-
-function newScratchSession() {
-  return {
-    id: SCRATCH_ID,
-    name: 'Scratch',
-    date: today(),
-    boardCount: null,
-    createdAt: new Date().toISOString(),
-    boards: [],
-  };
 }
 
 function newBoard(boardNumber, direction) {
@@ -100,6 +97,16 @@ function nextBoardNumber() {
 
 function today() {
   return new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD
+}
+
+// '2026-10-14' → 'Wed, Oct 14, 2026' (in the phone's own style).
+function formatDate(date) {
+  return new Date(`${date}T12:00`).toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
 function save() {
@@ -173,10 +180,100 @@ function resultHTML(board) {
   return `${callHTML(bid)}${final.doubled} by ${SEAT_NAMES[final.declarer]}`;
 }
 
+// 'Wed, Oct 14, 2026 · 5 of 18 boards · Pair 3 · with Alex'
+function sessionDetailsHTML(s) {
+  const recorded = s.boards.length;
+  const boards = s.boardCount
+    ? `${recorded} of ${s.boardCount} boards`
+    : `${recorded} board${recorded === 1 ? '' : 's'}`;
+  const parts = [formatDate(s.date), boards];
+  if (s.pairNumber) parts.push(`Pair ${s.pairNumber}`);
+  if (s.partner) parts.push(`with ${s.partner}`);
+  return escapeHTML(parts.join(' · '));
+}
+
 function options(values, selected) {
   return values
     .map((value) => `<option${value === selected ? ' selected' : ''}>${value}</option>`)
     .join('');
+}
+
+// Distinct non-empty values of a session field, most recent first.
+function previous(field) {
+  return [...new Set(sessions.map((s) => s[field]).filter(Boolean))];
+}
+
+// A list row that slides left to reveal a Delete button underneath.
+function swipeRowHTML({ deleteAction, deleteData, openAction, openData, content }) {
+  return `
+    <li class="swipe-row">
+      <button class="delete" data-action="${deleteAction}" ${deleteData} tabindex="-1">Delete</button>
+      <button class="row" data-action="${openAction}" ${openData}>${content}</button>
+    </li>`;
+}
+
+function renderSessionList() {
+  const rows = sessions
+    .map((s) => swipeRowHTML({
+      deleteAction: 'delete-session',
+      deleteData: `data-id="${s.id}"`,
+      openAction: 'open-session',
+      openData: `data-id="${s.id}"`,
+      content: `
+        <span class="summary">
+          <span class="title">${escapeHTML(s.name)}</span>
+          <span class="details">${sessionDetailsHTML(s)}</span>
+        </span>`,
+    }))
+    .join('');
+
+  app.className = 'list-screen';
+  app.innerHTML = `
+    <h1>Sessions</h1>
+    <button class="primary" data-action="new-session">New session</button>
+    ${rows ? `<ul class="list">${rows}</ul>` : '<p class="empty">No sessions yet.</p>'}`;
+}
+
+// The form for a new session, or for editing the one on screen.
+function renderSessionForm() {
+  const editing = screen === 'edit';
+  const values = editing
+    ? session
+    : { name: '', date: today(), boardCount: null, pairNumber: '', partner: previous('partner')[0] ?? '' };
+  const suggestions = (field) =>
+    previous(field).map((value) => `<option value="${escapeHTML(value)}">`).join('');
+  const boardCounts = Array.from({ length: MAX_BOARDS }, (_, i) => i + 1)
+    .map((n) => `<option value="${n}"${n === values.boardCount ? ' selected' : ''}>${n}</option>`)
+    .join('');
+
+  app.className = 'list-screen';
+  app.innerHTML = `
+    <header class="list-bar">
+      <button class="link" data-action="cancel">Cancel</button>
+    </header>
+    <h1>${editing ? 'Edit session' : 'New session'}</h1>
+    <form class="form">
+      <label>Name
+        <input name="name" list="names" value="${escapeHTML(values.name)}" placeholder="e.g. Evening Club" autocomplete="off">
+      </label>
+      <datalist id="names">${suggestions('name')}</datalist>
+      <label>Date
+        <input name="date" type="date" value="${values.date}" required>
+      </label>
+      <div class="form-row">
+        <label>Boards
+          <select name="boardCount"><option value="">Not set</option>${boardCounts}</select>
+        </label>
+        <label>Pair number
+          <input name="pairNumber" value="${escapeHTML(values.pairNumber ?? '')}" autocomplete="off">
+        </label>
+      </div>
+      <label>Partner
+        <input name="partner" list="partners" value="${escapeHTML(values.partner ?? '')}" autocomplete="off">
+      </label>
+      <datalist id="partners">${suggestions('partner')}</datalist>
+      <button class="primary" type="submit">${editing ? 'Save' : 'Start'}</button>
+    </form>`;
 }
 
 function renderBoardList() {
@@ -184,21 +281,21 @@ function renderBoardList() {
     ? [...session.boards].sort((a, b) => a.number - b.number)
     : [...session.boards].reverse(); // most recently recorded first
 
-  // Each row has a Delete button underneath, shown by swiping the row left.
   // Delete goes by position in session.boards, so it removes exactly this
   // row even if two boards somehow share a number.
   const rows = boards
-    .map((board) => `
-      <li class="swipe-row">
-        <button class="delete" data-action="delete" data-index="${session.boards.indexOf(board)}" tabindex="-1">Delete</button>
-        <button class="row" data-action="open" data-number="${board.number}">
-          <span class="number">${board.number}</span>
-          <span class="summary">
-            <span class="result">${resultHTML(board)}</span>
-            <span class="details">Dealer ${board.dealer} · Vul ${board.vulnerability} · We sit ${board.direction}</span>
-          </span>
-        </button>
-      </li>`)
+    .map((board) => swipeRowHTML({
+      deleteAction: 'delete-board',
+      deleteData: `data-index="${session.boards.indexOf(board)}"`,
+      openAction: 'open-board',
+      openData: `data-number="${board.number}"`,
+      content: `
+        <span class="number">${board.number}</span>
+        <span class="summary">
+          <span class="title">${resultHTML(board)}</span>
+          <span class="details">Dealer ${board.dealer} · Vul ${board.vulnerability} · We sit ${board.direction}</span>
+        </span>`,
+    }))
     .join('');
 
   const orderButton = (order, label) =>
@@ -206,13 +303,18 @@ function renderBoardList() {
 
   app.className = 'list-screen';
   app.innerHTML = `
+    <header class="list-bar">
+      <button class="link" data-action="sessions">${CHEVRON_LEFT}Sessions</button>
+      <button class="link" data-action="edit-session">Edit</button>
+    </header>
     <h1>${escapeHTML(session.name)}</h1>
-    <button class="primary" data-action="new">New board · ${nextBoardNumber()}</button>
+    <p class="subtitle">${sessionDetailsHTML(session)}</p>
+    <button class="primary" data-action="new-board">New board · ${nextBoardNumber()}</button>
     ${rows ? `
       <div class="toggle list-order" role="group" aria-label="Order">
         ${orderButton('recent', 'Recent')}${orderButton('number', 'Board #')}
       </div>
-      <ul class="boards">${rows}</ul>` : '<p class="empty">No boards yet.</p>'}`;
+      <ul class="list">${rows}</ul>` : '<p class="empty">No boards yet.</p>'}`;
 }
 
 function renderBoard(board) {
@@ -247,10 +349,10 @@ function renderBoard(board) {
     `<button class="${board.direction === direction ? 'on' : ''}" data-action="direction" data-direction="${direction}">${direction}</button>`;
   const hasPrevious = board.number > 1 || session.boardCount;
 
-  // The board picker: every board in the session, with recorded ones ticked.
+  // The board number picker: every board in the session, recorded ones ticked.
   // Not the board on screen, whose option is also the picker's closed label.
-  const lastBoard = session.boardCount
-    || Math.max(PICKER_BOARDS, board.number, ...session.boards.map((b) => b.number));
+  const recorded = session.boards.map((b) => b.number);
+  const lastBoard = Math.max(session.boardCount || MAX_BOARDS, board.number, ...recorded);
   const boardOptions = Array.from({ length: lastBoard }, (_, i) => {
     const n = i + 1;
     const tick = n !== board.number && findBoard(n) ? ' ✓' : '';
@@ -263,7 +365,7 @@ function renderBoard(board) {
       <div class="stepper">
         <button data-action="previous" aria-label="Previous board"${hasPrevious ? '' : ' disabled'}>${CHEVRON_LEFT}</button>
         <label class="board-picker">
-          <select data-navigate="board" aria-label="Board">${boardOptions}</select>${CHEVRON_DOWN}
+          <select data-renumber aria-label="Board number">${boardOptions}</select>${CHEVRON_DOWN}
         </label>
         <button data-action="next" aria-label="Next board">${CHEVRON_RIGHT}</button>
       </div>
@@ -292,24 +394,59 @@ function renderBoard(board) {
 }
 
 function render() {
-  if (number === null) renderBoardList();
-  else renderBoard(findBoard(number) ?? draft);
+  switch (screen) {
+    case 'sessions': return renderSessionList();
+    case 'new':
+    case 'edit': return renderSessionForm();
+    case 'boards': return renderBoardList();
+    case 'board': return renderBoard(findBoard(number) ?? draft);
+  }
 }
 
 // What each button does. Board actions get the board on screen. An action
 // returns true if it changed that board, which then gets saved and redrawn.
 // Navigation returns nothing and lets the hashchange redraw.
 const actions = {
+  // Session list
+  'new-session'() {
+    go('#/new');
+  },
+  'open-session'(button) {
+    // Tapping a row that is showing Delete just closes it.
+    if (closeSwipedRows()) return;
+    go(`#/s/${button.dataset.id}`);
+  },
+  async 'delete-session'(button) {
+    const doomed = sessions.find((s) => s.id === button.dataset.id);
+    const boards = doomed.boards.length;
+    const what = `“${doomed.name}” (${formatDate(doomed.date)})`;
+    if (boards && !confirm(`Delete ${what} and its ${boards} board${boards === 1 ? '' : 's'}?`)) return;
+    await store.deleteSession(doomed.id);
+    sessions = sessions.filter((s) => s !== doomed);
+    if (session?.id === doomed.id) session = null;
+    render();
+  },
+
+  // Session form
+  cancel() {
+    go(screen === 'edit' ? `#/s/${session.id}` : '#/sessions');
+  },
+
   // Board list
-  new() {
+  sessions() {
+    go('#/sessions');
+  },
+  'edit-session'() {
+    go(`#/s/${session.id}/edit`);
+  },
+  'new-board'() {
     openBoard(nextBoardNumber(), session.boards.at(-1)?.direction ?? 'NS');
   },
-  open(button) {
-    // Tapping a row that is showing Delete just closes it.
+  'open-board'(button) {
     if (closeSwipedRows()) return;
     openBoard(Number(button.dataset.number));
   },
-  delete(button) {
+  'delete-board'(button) {
     session.boards.splice(Number(button.dataset.index), 1);
     save();
     render();
@@ -342,22 +479,27 @@ const actions = {
   },
 };
 
-app.addEventListener('click', (event) => {
+app.addEventListener('click', async (event) => {
   const button = event.target.closest('button');
   if (!button || button.disabled) return;
-  // A swipe can end with a click on the row; it shouldn't open the board.
+  if (button.form && button.type === 'submit') return; // the submit handler has it
+  // A swipe can end with a click on the row; it shouldn't open anything.
   if (swipedThisGesture) {
     swipedThisGesture = false;
     return;
   }
-  const board = number === null ? null : (findBoard(number) ?? draft);
+  const board = screen === 'board' ? (findBoard(number) ?? draft) : null;
 
   let changed;
   if (button.dataset.call) {
     board.auction.push(button.dataset.call);
     changed = true;
   } else {
-    changed = actions[button.dataset.action]?.(button, board);
+    try {
+      changed = await actions[button.dataset.action]?.(button, board);
+    } catch (error) {
+      showError(error.message);
+    }
   }
   if (changed) {
     commit(board);
@@ -366,10 +508,10 @@ app.addEventListener('click', (event) => {
 });
 
 app.addEventListener('change', (event) => {
+  if (screen !== 'board') return;
   const board = findBoard(number) ?? draft;
-  if (event.target.dataset.navigate === 'board') {
-    leaveBoard();
-    openBoard(Number(event.target.value), board.direction);
+  if ('renumber' in event.target.dataset) {
+    renumber(board, Number(event.target.value));
     return;
   }
   const field = event.target.dataset.field;
@@ -377,6 +519,52 @@ app.addEventListener('change', (event) => {
   board[field] = event.target.value;
   commit(board);
   render();
+});
+
+// Sets the number of the board on screen. A blank board just becomes the
+// chosen board (opening it if it's recorded). A board with calls moves to
+// the new number, unless that board is already recorded.
+function renumber(board, target) {
+  if (board.auction.length === 0) {
+    leaveBoard();
+    openBoard(target, board.direction);
+    return;
+  }
+  if (findBoard(target)) {
+    showError(`Board ${target} already has an auction. To move this one there, delete board ${target} first.`);
+    render(); // puts the picker back
+    return;
+  }
+  board.number = target;
+  board.dealer = dealerForBoard(target);
+  board.vulnerability = vulnerabilityForBoard(target);
+  save();
+  go(`#/s/${session.id}/b/${target}`);
+}
+
+// The session form: Start creates a session, Save updates the one on screen.
+app.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const form = new FormData(event.target);
+  const date = form.get('date') || today();
+  const details = {
+    name: form.get('name').trim() || formatDate(date),
+    date,
+    boardCount: Number(form.get('boardCount')) || null,
+    pairNumber: form.get('pairNumber').trim(),
+    partner: form.get('partner').trim(),
+  };
+  if (screen === 'edit') {
+    Object.assign(session, details);
+  } else {
+    session = { id: store.newId(), ...details, createdAt: new Date().toISOString(), boards: [] };
+  }
+  try {
+    await store.saveSession(session);
+    go(`#/s/${session.id}`);
+  } catch (error) {
+    showError(`Couldn't save: ${error.message}`);
+  }
 });
 
 // Swipe to delete, as in iOS lists. Pointer events cover touch and mouse.
@@ -442,20 +630,36 @@ app.addEventListener('pointerup', endSwipe);
 app.addEventListener('pointercancel', endSwipe);
 
 async function route() {
-  // '#/s/scratch/b/17' → ['s', 'scratch', 'b', '17']
-  const [, id, , boardNumber] = location.hash.slice(2).split('/');
-  if (id !== SCRATCH_ID) return go(`#/s/${SCRATCH_ID}`);
+  // '#/s/abc/b/17' → ['s', 'abc', 'b', '17']
+  const [kind, id, part, boardNumber] = location.hash.slice(2).split('/');
 
-  if (session?.id !== id) session = (await store.getSession(id)) ?? newScratchSession();
-
-  if (boardNumber === undefined) {
-    number = null;
-  } else {
-    number = Number(boardNumber);
-    // Arriving without openBoard(), e.g. by reloading on a new board.
-    if (!findBoard(number) && draft?.number !== number) {
-      draft = newBoard(number, session.boards.at(-1)?.direction ?? 'NS');
+  if (kind === 's') {
+    if (session?.id !== id) {
+      session = await store.getSession(id);
+      draft = null;
     }
+    if (!session) return go('#/sessions');
+
+    if (part === 'edit') {
+      screen = 'edit';
+      sessions = await store.listSessions();
+    } else if (part === 'b') {
+      screen = 'board';
+      number = Number(boardNumber);
+      // Arriving without openBoard(), e.g. by reloading on a new board.
+      if (!findBoard(number) && draft?.number !== number) {
+        draft = newBoard(number, session.boards.at(-1)?.direction ?? 'NS');
+      }
+    } else {
+      screen = 'boards';
+    }
+  } else if (kind === 'sessions' || kind === 'new') {
+    screen = kind;
+    sessions = await store.listSessions();
+  } else {
+    // Opening the app: go straight to today's session if there is one.
+    const todays = (await store.listSessions()).find((s) => s.date === today());
+    return go(todays ? `#/s/${todays.id}` : '#/sessions');
   }
   render();
 }
@@ -464,4 +668,6 @@ window.addEventListener('hashchange', () => {
   route().catch((error) => showError(error.message));
 });
 store.requestPersistence();
+// The scratch session from development is no longer used.
+store.deleteSession('scratch').catch(() => {});
 route().catch((error) => showError(`Couldn't start: ${error.message}`));

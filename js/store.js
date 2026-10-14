@@ -34,10 +34,11 @@ async function run(mode, makeRequest) {
   });
 }
 
-// All sessions, newest first.
+// All sessions, newest first: by the date played, then by when created.
 export async function listSessions() {
   const sessions = await run('readonly', (store) => store.getAll());
-  return sessions.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return sessions.sort((a, b) =>
+    b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt));
 }
 
 // The session with this id, or undefined.

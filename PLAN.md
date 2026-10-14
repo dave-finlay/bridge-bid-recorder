@@ -44,6 +44,8 @@ session = {
   id, name,            // e.g. "Evening Club"
   date,                // "2026-10-14"
   boardCount,          // e.g. 18, 21 or 24, or null if not known
+  pairNumber,          // e.g. "3", as text in case a section letter is included
+  partner,             // e.g. "Alex", defaults from the previous session
   createdAt,
   boards: [board, ...] // in the order played
 }
@@ -85,10 +87,12 @@ and `NT`.
    out of exports.
 5. **Undo** removes the last call entered, and can be repeated.
 6. **Chevrons (‹ ›) move between boards** on the bidding screen, showing
-   the next board's auction if recorded, or a blank board if not. They
-   never renumber a board. There is no renumbering for now: a board
-   recorded under the wrong number is re-entered. Overriding the dealer
-   keeps the calls, and can't make any of them illegal: sides alternate
+   the next board's auction if recorded, or a blank board if not. **The
+   board number picker sets this board's number:** on a blank board that
+   amounts to jumping to the chosen board; a board with calls is
+   renumbered (dealer and vulnerability follow the new number), unless
+   the chosen board is already recorded. Changing the dealer, either way,
+   keeps the calls and can't make any of them illegal: sides alternate
    around the table, so whether two calls were made by opponents depends
    only on their positions in the auction.
 7. **The next board** defaults to the previous board's number plus one,
@@ -120,18 +124,26 @@ it gets exercised in step 3.
 The session's board list is home base: the boards played so far (a
 toggle shows them most recent first or by board number; tap one to edit
 it; swipe one left to reveal Delete) and a New board button. New board opens
-the bidding screen: board number (tap it for a picker that jumps to any
-board, with recorded boards ticked) with ‹ › to move one board, dealer and vulnerability, an
+the bidding screen: board number (tap it for a picker that sets this
+board's number, with recorded boards ticked) and ‹ › to move one board, dealer and vulnerability, an
 NS/EW toggle, the auction table, a 7×5 bidding box with illegal bids
 grayed out, Pass, X, XX and Undo. Every tap saves, so OK just returns to
 the list. Works on a single scratch session for now. Dev server so you
 can open it on the iPhone.
 **Review:** try it on the phone. This is the main ergonomics checkpoint.
 
-### 4. Sessions and navigation
-Home screen (list of sessions and New session), and the new-session
-form (name, date, board count, first board and its direction). Delete
-for sessions.
+### 4. Sessions and navigation: done
+The common case: get to the club, set up the session, then for each
+board turn on the phone and tap New board.
+- **Opening the app** goes straight to today's session if there is one,
+  otherwise to the session list.
+- **Session list:** newest first, with New session; swipe left to delete.
+- **Session form** (new, or Edit from the board list): name (suggesting
+  previous names), date (today), board count, pair number, and partner
+  (defaults to the last partner, suggesting previous ones). The first
+  board and direction are set on the bidding screen, not in the form.
+- **Board list** gets a link back to Sessions and an Edit button.
+- The scratch session from development is dropped.
 **Review:** run through a full mock session.
 
 ### 5. Export
