@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "icons": "swift scripts/make-icons.swift",
     "start": "node scripts/serve.mjs",
     "test": "node --test"
   }

@@ -158,7 +158,7 @@ session list has "Back up all sessions" (JSON). Formatting lives in
 `js/export.js`, with unit tests.
 **Review:** export a mock session and open the files.
 
-### 6. PWA: works offline, installable
+### 6. PWA: works offline, installable: done
 Manifest, icons and service worker. Add to Home Screen, then test in
 airplane mode.
 **Review:** install it on the phone.

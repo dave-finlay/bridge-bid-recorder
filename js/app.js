@@ -715,6 +715,12 @@ window.addEventListener('hashchange', () => {
   route().catch((error) => showError(error.message));
 });
 store.requestPersistence();
+// Offline support (sw.js). Browsers only allow it over HTTPS, so it runs on
+// the hosted app; it's skipped on localhost, where a cached copy would hide
+// each change until a second reload.
+if ('serviceWorker' in navigator && location.hostname !== 'localhost') {
+  navigator.serviceWorker.register('sw.js').catch((error) => showError(`Offline mode unavailable: ${error.message}`));
+}
 // The scratch session from development is no longer used.
 store.deleteSession('scratch').catch(() => {});
 route().catch((error) => showError(`Couldn't start: ${error.message}`));
