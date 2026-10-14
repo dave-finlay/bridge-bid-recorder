@@ -120,3 +120,7 @@ download instead.
 publishes. Pages rebuilds in about a minute, and an installed app picks
 up the new version the second time it's opened. When adding a file the
 app loads, list it in `sw.js` and bump the cache version there.
+
+## License
+
+[MIT](LICENSE)

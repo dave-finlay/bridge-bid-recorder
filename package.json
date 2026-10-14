@@ -1,6 +1,7 @@
 {
   "name": "bridge-bid-recorder",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "icons": "swift scripts/make-icons.swift",
