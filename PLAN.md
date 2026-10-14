@@ -163,10 +163,13 @@ Manifest, icons and service worker. Add to Home Screen, then test in
 airplane mode.
 **Review:** install it on the phone.
 
-### 7. Hosting
-The service worker and share sheet need HTTPS, so the installed app has
-to be hosted. GitHub Pages is free and the simplest option. This means
-publishing the repo, so we confirm before doing it.
+### 7. Hosting: done
+GitHub Pages serves the `main` branch of the public repo
+`dave-finlay/bridge-bid-recorder` at
+https://dave-finlay.github.io/bridge-bid-recorder/ over HTTPS, which the
+service worker and share sheet need. To publish a change, push `main`;
+Pages rebuilds in about a minute, and the installed app picks it up the
+second time it is opened.
 **Review:** install from the hosted URL on both phones.
 
 ### 8. Trial at the table, then iterate
