@@ -146,11 +146,16 @@ board turn on the phone and tap New board.
 - The scratch session from development is dropped.
 **Review:** run through a full mock session.
 
-### 5. Export
-CSV (one row per board), JSON (full session) and PBN (auctions in
-`[Auction]` sections, to merge with the club's hand records). Sent
-through the iOS share sheet (AirDrop, Mail, Files), with a download as
-fallback. A "back up everything" JSON on the home screen.
+### 5. Export: done
+From the board list: CSV (one row per board, for spreadsheets), JSON (the
+session as stored, plus each board's contract), and PBN (each board's
+tags and `[Auction]`, in the club's conventions: contracts like `4HX`,
+dates like `2026.10.14`, CRLF line endings), to merge with the club's
+hand records. Only boards with calls are exported, in board order, with
+the closing passes filled in. Files go to the iOS share sheet (AirDrop,
+Mail, Files); without HTTPS (the dev server) they download instead. The
+session list has "Back up all sessions" (JSON). Formatting lives in
+`js/export.js`, with unit tests.
 **Review:** export a mock session and open the files.
 
 ### 6. PWA: works offline, installable

@@ -245,6 +245,36 @@ button {
   font-size: 13px;
 }
 
+.list-screen h2 {
+  margin: 22px 0 8px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.secondary {
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--felt);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.list-screen > .secondary {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.export {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
 .empty {
   margin-top: 24px;
   color: var(--muted);

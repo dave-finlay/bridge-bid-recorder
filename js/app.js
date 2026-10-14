@@ -32,6 +32,7 @@ import {
   sideOf,
   vulnerabilityForBoard,
 } from './auction.js';
+import { fileName, toCSV, toJSON, toPBN } from './export.js';
 import * as store from './store.js';
 
 const app = document.getElementById('app');
@@ -48,6 +49,13 @@ const CHEVRON_DOWN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l
 const MAX_BOARDS = 36; // boards offered by pickers when the board count isn't known
 const ORDER_KEY = 'boardListOrder';
 const DELETE_WIDTH = 88; // px a row slides left to show its Delete button
+
+// Export formats for one session: the file type and how to write it.
+const FORMATS = {
+  csv: { type: 'text/csv', write: (s) => toCSV(s) },
+  json: { type: 'application/json', write: (s) => toJSON([s]) },
+  pbn: { type: 'text/plain', write: (s) => toPBN(s) },
+};
 
 let screen; // 'sessions', 'new', 'edit', 'boards' or 'board'
 let sessions = []; // all sessions, newest first, on the list and form screens
@@ -130,6 +138,28 @@ function showError(message) {
   toast.textContent = message;
   document.body.append(toast);
   setTimeout(() => toast.remove(), 5000);
+}
+
+// Hands a file to the share sheet (AirDrop, Mail, Save to Files, ...).
+// Browsers only allow sharing over HTTPS, so on the development server the
+// file is downloaded instead. Must be called straight from a tap: browsers
+// refuse to share otherwise.
+async function shareFile(name, type, text) {
+  const file = new File([text], name, { type });
+  if (navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file] });
+    } catch (error) {
+      if (error.name !== 'AbortError') throw error; // AbortError: closed the sheet
+    }
+    return;
+  }
+  const url = URL.createObjectURL(file);
+  const link = Object.assign(document.createElement('a'), { href: url, download: name });
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
 function go(hash) {
@@ -231,7 +261,9 @@ function renderSessionList() {
   app.innerHTML = `
     <h1>Sessions</h1>
     <button class="primary" data-action="new-session">New session</button>
-    ${rows ? `<ul class="list">${rows}</ul>` : '<p class="empty">No sessions yet.</p>'}`;
+    ${rows ? `
+      <ul class="list">${rows}</ul>
+      <button class="secondary" data-action="backup">Back up all sessions (JSON)</button>` : '<p class="empty">No sessions yet.</p>'}`;
 }
 
 // The form for a new session, or for editing the one on screen.
@@ -314,7 +346,13 @@ function renderBoardList() {
       <div class="toggle list-order" role="group" aria-label="Order">
         ${orderButton('recent', 'Recent')}${orderButton('number', 'Board #')}
       </div>
-      <ul class="list">${rows}</ul>` : '<p class="empty">No boards yet.</p>'}`;
+      <ul class="list">${rows}</ul>
+      <h2>Export</h2>
+      <div class="export">
+        <button class="secondary" data-action="export" data-format="csv">CSV</button>
+        <button class="secondary" data-action="export" data-format="json">JSON</button>
+        <button class="secondary" data-action="export" data-format="pbn">PBN</button>
+      </div>` : '<p class="empty">No boards yet.</p>'}`;
 }
 
 function renderBoard(board) {
@@ -427,6 +465,10 @@ const actions = {
     render();
   },
 
+  backup() {
+    return shareFile(`bridge-bids-backup-${today()}.json`, 'application/json', toJSON(sessions));
+  },
+
   // Session form
   cancel() {
     go(screen === 'edit' ? `#/s/${session.id}` : '#/sessions');
@@ -454,6 +496,11 @@ const actions = {
   order(button) {
     writeListOrder(button.dataset.order);
     render();
+  },
+  export(button) {
+    const { format } = button.dataset;
+    const { type, write } = FORMATS[format];
+    return shareFile(fileName(session, format), type, write(session));
   },
 
   // Bidding screen
