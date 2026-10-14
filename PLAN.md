@@ -43,7 +43,6 @@ scripts/make-icons.swift  generates the icon PNGs
 session = {
   id, name,            // e.g. "Evening Club"
   date,                // "2026-10-14"
-  direction,           // "NS" or "EW": the side we sit
   createdAt,
   boards: [board, ...] // in the order played
 }
@@ -52,13 +51,17 @@ board = {
   number,              // 1, 2, ...
   dealer,              // "N" | "E" | "S" | "W", defaults from number
   vulnerability,       // "None" | "NS" | "EW" | "All", defaults from number
-  calls                // as entered, starting with dealer: ["1C", "P", "1H", "X", ...]
+  direction,           // "NS" | "EW": the side we sit, defaults from the previous board
+  auction              // calls as entered, starting with dealer: ["1C", "P", "1H", "X", ...]
 }
 ```
 
-Calls are stored as `P` (pass), `X`, `XX`, or level plus strain (`1C`,
-`3N` for 3NT). Display uses suit symbols, and exports use `Pass` and
-`NT`.
+The auction is a list of *calls*. In bridge's Laws a call is any bid,
+pass, double or redouble, while a *bid* means only a level and strain
+such as 1♣ or 3NT. The code keeps that distinction, e.g. `isBid('P')` is
+false. Calls are stored as `P` (pass), `X`, `XX`, or level plus strain
+(`1C`, `3N` for 3NT). Display uses suit symbols, and exports use `Pass`
+and `NT`.
 
 ## Rules and behavior (to confirm)
 
@@ -78,7 +81,9 @@ Calls are stored as `P` (pass), `X`, `XX`, or level plus strain (`1C`,
 5. **Undo** removes the last call entered, and can be repeated.
 6. **Changing the board number or dealer** after calls are entered keeps
    the calls but cuts the auction at the first call that becomes illegal.
-7. **The next board** defaults to the previous board's number plus one.
+7. **The next board** defaults to the previous board's number plus one,
+   and to the same direction (NS or EW). Direction belongs to each board,
+   because some sessions mix NS and EW boards.
 8. **The auction table** shows columns W N E S, as BBO does. Vulnerable
    seats are shown in red, our seats are marked "us", and the dealer is
    marked.
@@ -93,22 +98,22 @@ implied passes, contract and declarer, and trimming the illegal calls
 left after a dealer change.
 **Review:** read the module and tests, and run `npm test`.
 
-### 2. Storage (`js/store.js`)
+### 2. Storage (`js/store.js`): done
 IndexedDB wrapper: list, get, save and delete sessions. Ask the browser
 for persistent storage.
 **Review:** a short read. It is hard to unit-test outside a browser, so
 it gets exercised in step 3.
 
 ### 3. Bidding screen (the core)
-One screen with the board number stepper, dealer and vulnerability, the
-auction table, a 7×5 bidding box with illegal bids grayed out, Pass, X,
+One screen with the board number stepper, dealer and vulnerability, an
+NS/EW toggle, the auction table, a 7×5 bidding box with illegal bids grayed out, Pass, X,
 XX, Undo and Next board. Hardcoded to a throwaway session so we can
 try it right away. Dev server so you can open it on the iPhone.
 **Review:** try it on the phone. This is the main ergonomics checkpoint.
 
 ### 4. Sessions and navigation
 Home screen (list of sessions and New session), the new-session form
-(name, date, NS/EW, first board), and the session screen (list of boards
+(name, date, first board and its direction), and the session screen (list of boards
 with contracts, to tap and edit). Delete for boards and sessions.
 **Review:** run through a full mock session.
 
