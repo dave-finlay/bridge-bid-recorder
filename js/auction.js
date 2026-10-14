@@ -31,6 +31,19 @@ export function vulnerabilityForBoard(board) {
   return VULNERABILITY[(board - 1) % 16];
 }
 
+// The board played after `board`. Sessions often start partway through
+// (say at board 13 of 18), so with a known board count it wraps to 1.
+export function boardAfter(board, boardCount) {
+  return boardCount && board >= boardCount ? 1 : board + 1;
+}
+
+// The board before `board`, wrapping to the last board when the count is
+// known. Without a count there is nothing before board 1.
+export function boardBefore(board, boardCount) {
+  if (board > 1) return board - 1;
+  return boardCount || 1;
+}
+
 // The seat `steps` places clockwise from `seat`.
 export function seatAfter(seat, steps = 1) {
   return SEATS[(SEATS.indexOf(seat) + steps) % 4];
@@ -93,18 +106,6 @@ export function completeAuction(calls) {
   const completed = [...calls];
   while (!isComplete(completed)) completed.push('P');
   return completed;
-}
-
-// The longest legal start of `calls` with this dealer. Used when the board
-// or dealer changes after calls were entered: we keep the calls, but stop
-// at the first one that is no longer legal.
-export function validPrefix(dealer, calls) {
-  const valid = [];
-  for (const call of calls) {
-    if (!legalCalls(dealer, valid).has(call)) break;
-    valid.push(call);
-  }
-  return valid;
 }
 
 // The contract reached so far, or null if nobody has bid. The declarer is

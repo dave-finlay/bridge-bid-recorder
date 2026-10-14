@@ -2,6 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   BIDS,
+  boardAfter,
+  boardBefore,
   completeAuction,
   contract,
   dealerForBoard,
@@ -9,7 +11,7 @@ import {
   isVulnerable,
   legalCalls,
   nextToAct,
-  validPrefix,
+  SEATS,
   vulnerabilityForBoard,
 } from '../js/auction.js';
 
@@ -42,6 +44,20 @@ test('boards 17-24 repeat the cycle, as in a 24-board game', () => {
     ['N', 'E', 'S', 'W', 'N', 'E', 'S', 'W']);
   assert.deepEqual(boards.map(vulnerabilityForBoard),
     ['None', 'NS', 'EW', 'All', 'NS', 'EW', 'All', 'None']);
+});
+
+test('boardAfter counts up, wrapping after the last board', () => {
+  assert.equal(boardAfter(13, 18), 14);
+  assert.equal(boardAfter(18, 18), 1);
+  assert.equal(boardAfter(24, 24), 1);
+  // Without a board count there is no wrapping.
+  assert.equal(boardAfter(18, null), 19);
+});
+
+test('boardBefore counts down, wrapping before board 1', () => {
+  assert.equal(boardBefore(14, 18), 13);
+  assert.equal(boardBefore(1, 21), 21);
+  assert.equal(boardBefore(1, null), 1);
 });
 
 test('isVulnerable', () => {
@@ -162,13 +178,12 @@ test('contract: doubled and redoubled', () => {
   assert.equal(contract('N', calls('1H X 2H P P P')).doubled, '');
 });
 
-test('validPrefix keeps calls that are still legal', () => {
-  assert.deepEqual(validPrefix('N', calls('1C X 1H')), calls('1C X 1H'));
-});
-
-test('validPrefix stops at the first call that becomes illegal', () => {
-  // With E dealing: E 1C, S P, W X. W is E's partner, so the X is illegal.
-  assert.deepEqual(validPrefix('E', calls('1C P X 1H')), calls('1C P'));
-  // Calls after the end of the auction are dropped too.
-  assert.deepEqual(validPrefix('N', calls('1C P P P 1D')), calls('1C P P P'));
+test('legal calls do not depend on who dealt', () => {
+  // Sides alternate around the table, so whether two calls were made by
+  // opponents depends only on their positions in the auction. Changing
+  // the board number or dealer therefore never makes an auction illegal.
+  for (const auction of ['', '1C', '1C X', '1C X P P', '1C P P', '2H X XX', '1N P 2C']) {
+    const expected = legal('N', auction);
+    for (const dealer of SEATS) assert.deepEqual(legal(dealer, auction), expected);
+  }
 });

@@ -43,12 +43,13 @@ scripts/make-icons.swift  generates the icon PNGs
 session = {
   id, name,            // e.g. "Evening Club"
   date,                // "2026-10-14"
+  boardCount,          // e.g. 18, 21 or 24, or null if not known
   createdAt,
   boards: [board, ...] // in the order played
 }
 
 board = {
-  number,              // 1, 2, ...
+  number,              // 1, 2, ...; unique within the session
   dealer,              // "N" | "E" | "S" | "W", defaults from number
   vulnerability,       // "None" | "NS" | "EW" | "All", defaults from number
   direction,           // "NS" | "EW": the side we sit, defaults from the previous board
@@ -76,13 +77,24 @@ and `NT`.
    when displaying or exporting. After a bid, three passes end the
    auction. With no bid, it takes four passes. So entering a single Pass
    records a passed-out board.
-4. **A board with no calls entered** counts as not recorded. It is left
+4. **A board joins the session when its first call is entered.** Opening
+   a board that hasn't been recorded shows a blank one, so browsing past
+   boards or a mistaken New board leaves nothing behind. A board whose
+   calls are all undone leaves the session when you move off it. Any
+   empty board that remains (say the app was closed mid-board) is left
    out of exports.
 5. **Undo** removes the last call entered, and can be repeated.
-6. **Changing the board number or dealer** after calls are entered keeps
-   the calls but cuts the auction at the first call that becomes illegal.
+6. **Chevrons (‹ ›) move between boards** on the bidding screen, showing
+   the next board's auction if recorded, or a blank board if not. They
+   never renumber a board. There is no renumbering for now: a board
+   recorded under the wrong number is re-entered. Overriding the dealer
+   keeps the calls, and can't make any of them illegal: sides alternate
+   around the table, so whether two calls were made by opponents depends
+   only on their positions in the auction.
 7. **The next board** defaults to the previous board's number plus one,
-   and to the same direction (NS or EW). Direction belongs to each board,
+   wrapping to 1 after the last board when the session's board count is
+   set (we often start partway through, e.g. at board 13 of 18). It also
+   defaults to the previous board's direction (NS or EW). Direction belongs to each board,
    because some sessions mix NS and EW boards.
 8. **The auction table** shows columns W N E S, as BBO does. Vulnerable
    seats are shown in red, our seats are marked "us", and the dealer is
@@ -104,17 +116,22 @@ for persistent storage.
 **Review:** a short read. It is hard to unit-test outside a browser, so
 it gets exercised in step 3.
 
-### 3. Bidding screen (the core)
-One screen with the board number stepper, dealer and vulnerability, an
-NS/EW toggle, the auction table, a 7×5 bidding box with illegal bids grayed out, Pass, X,
-XX, Undo and Next board. Hardcoded to a throwaway session so we can
-try it right away. Dev server so you can open it on the iPhone.
+### 3. Board list and bidding screen (the core): done
+The session's board list is home base: the boards played so far (a
+toggle shows them most recent first or by board number; tap one to edit
+it; swipe one left to reveal Delete) and a New board button. New board opens
+the bidding screen: board number (tap it for a picker that jumps to any
+board, with recorded boards ticked) with ‹ › to move one board, dealer and vulnerability, an
+NS/EW toggle, the auction table, a 7×5 bidding box with illegal bids
+grayed out, Pass, X, XX and Undo. Every tap saves, so OK just returns to
+the list. Works on a single scratch session for now. Dev server so you
+can open it on the iPhone.
 **Review:** try it on the phone. This is the main ergonomics checkpoint.
 
 ### 4. Sessions and navigation
-Home screen (list of sessions and New session), the new-session form
-(name, date, first board and its direction), and the session screen (list of boards
-with contracts, to tap and edit). Delete for boards and sessions.
+Home screen (list of sessions and New session), and the new-session
+form (name, date, board count, first board and its direction). Delete
+for sessions.
 **Review:** run through a full mock session.
 
 ### 5. Export

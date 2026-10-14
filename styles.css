@@ -1,0 +1,493 @@
+:root {
+  --felt: #1d6b41;
+  --bg: #eef1ef;
+  --surface: #ffffff;
+  --surface-2: #f6f8f7;
+  --text: #17201b;
+  --muted: #66716a;
+  --line: #d5dcd8;
+  --red: #c4232b;
+  --vul: #d33a3a;
+  --pass: #2f7d4f;
+  --double: #c4232b;
+  --redouble: #2059b8;
+  --off-bg: #e3e7e5;
+  --off-text: #b3bab6;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --felt: #2f8a57;
+    --bg: #0f1311;
+    --surface: #1a1f1c;
+    --surface-2: #151a17;
+    --text: #e9eeeb;
+    --muted: #97a29b;
+    --line: #2d3531;
+    --red: #ff6b6b;
+    --vul: #b83232;
+    --double: #c73838;
+    --off-bg: #161a18;
+    --off-text: #3c4540;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+
+button,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  touch-action: manipulation; /* no double-tap zoom, so taps register at once */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.red {
+  color: var(--red);
+}
+
+/* Board list */
+
+.list-screen {
+  max-width: 480px;
+  margin: 0 auto;
+  padding:
+    calc(env(safe-area-inset-top) + 12px)
+    calc(env(safe-area-inset-right) + 14px)
+    calc(env(safe-area-inset-bottom) + 16px)
+    calc(env(safe-area-inset-left) + 14px);
+}
+
+.list-screen h1 {
+  margin: 4px 0 14px;
+  font-size: 26px;
+}
+
+.primary {
+  width: 100%;
+  height: 52px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--felt);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.list-order {
+  width: fit-content;
+  margin: 14px 0 0 auto;
+}
+
+.boards {
+  margin: 8px 0 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  list-style: none;
+}
+
+.boards li + li {
+  border-top: 1px solid var(--line);
+}
+
+/* Swipe to delete: the row slides left over its Delete button. */
+.swipe-row {
+  position: relative;
+  overflow: hidden;
+}
+
+.swipe-row .delete {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 88px; /* DELETE_WIDTH in app.js */
+  border: 0;
+  background: var(--red);
+  color: #fff;
+  font-weight: 600;
+}
+
+.swipe-row .row {
+  position: relative;
+  touch-action: pan-y;
+  transition: transform 0.2s ease;
+}
+
+.swipe-row.swiped .row {
+  transform: translateX(-88px);
+}
+
+.boards .row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 0;
+  background: var(--surface);
+  text-align: left;
+}
+
+.boards .number {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+  background: var(--surface-2);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.boards .result {
+  display: block;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.boards .details {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.empty {
+  margin-top: 24px;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* Bidding screen: fills the screen, with the bidding box at the bottom
+   where the thumb reaches. The auction table takes the space left over. */
+
+.board-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 480px;
+  height: 100dvh;
+  margin: 0 auto;
+  padding:
+    calc(env(safe-area-inset-top) + 8px)
+    calc(env(safe-area-inset-right) + 10px)
+    calc(env(safe-area-inset-bottom) + 8px)
+    calc(env(safe-area-inset-left) + 10px);
+}
+
+.board-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* The board number is a native picker (the wheel on iPhone), styled to
+   read as a title with a small down chevron. */
+.board-picker {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.board-picker select {
+  padding: 4px 22px 4px 6px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-size: 21px;
+  font-weight: 700;
+  appearance: none;
+}
+
+.board-picker svg {
+  position: absolute;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.5;
+  pointer-events: none;
+}
+
+.stepper button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--surface);
+}
+
+.stepper svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.5;
+}
+
+.stepper button:disabled {
+  opacity: 0.35;
+}
+
+.ok {
+  height: 44px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: 22px;
+  background: var(--felt);
+  color: #fff;
+  font-weight: 600;
+}
+
+.settings {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.settings label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.settings select {
+  padding: 4px 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 16px; /* below 16px, iOS zooms in when the picker opens */
+}
+
+.toggle {
+  display: flex;
+  margin-left: auto;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.toggle button {
+  padding: 6px 12px;
+  border: 0;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.toggle button.on {
+  background: var(--felt);
+  color: #fff;
+}
+
+.auction {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 96px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.seats,
+.calls {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  text-align: center;
+}
+
+.seat {
+  padding: 4px 0 3px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+  font-weight: 700;
+}
+
+.seat small {
+  display: block;
+  min-height: 1.2em;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.seat.vul {
+  background: var(--vul);
+  color: #fff;
+}
+
+.seat.vul small {
+  color: rgb(255 255 255 / 85%);
+}
+
+.seat.to-act {
+  box-shadow: inset 0 -3px 0 var(--text);
+}
+
+.calls {
+  flex: 1;
+  align-content: start;
+  overflow-y: auto;
+  padding: 2px 0;
+}
+
+.calls > div {
+  padding: 4px 0;
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.calls .pass {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.calls .double {
+  color: var(--double);
+}
+
+.calls .redouble {
+  color: var(--redouble);
+}
+
+.cursor {
+  color: var(--muted);
+  animation: blink 1.1s steps(2, start) infinite;
+}
+
+@keyframes blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+.status {
+  min-height: 1.3em;
+  margin: 0;
+  color: var(--muted);
+  font-size: 15px;
+  text-align: center;
+}
+
+.status strong {
+  color: var(--text);
+}
+
+.box {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
+}
+
+.box button {
+  height: clamp(36px, 5.6dvh, 52px);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.box button:active:not(:disabled) {
+  background: var(--felt);
+  color: #fff;
+}
+
+.specials {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1.3fr;
+  gap: 5px;
+}
+
+.specials button {
+  height: 52px;
+  border: 0;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.specials .pass {
+  background: var(--pass);
+}
+
+.specials .double {
+  background: var(--double);
+}
+
+.specials .redouble {
+  background: var(--redouble);
+}
+
+.specials .undo {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* Illegal calls: grayed out. Comes after the rules above so it wins. */
+.box button:disabled,
+.specials button:disabled {
+  border-color: transparent;
+  background: var(--off-bg);
+  color: var(--off-text);
+}
+
+.toast {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom) + 16px);
+  left: 50%;
+  max-width: 90vw;
+  padding: 10px 14px;
+  transform: translateX(-50%);
+  border-radius: 10px;
+  background: #222;
+  color: #fff;
+  font-size: 14px;
+}
