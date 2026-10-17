@@ -14,6 +14,11 @@ reviewed afterwards.
   aren't legal at that point are grayed out, including doubles of
   partner and redoubles without a double.
 - **Undo** steps back one call at a time.
+- **Alert and announcement reminders.** Calls our agreements alert or
+  announce get a red or blue box, and a banner says who speaks: the
+  bidder's partner (the bidder stays silent). For the opponents' calls it
+  says what we would do, as a cue to ask if they didn't. Tap a marked call
+  to see its reminder again.
 - **Closing passes are assumed.** Enter the auction up to the last bid
   (or double) and the three passes that end it are filled in. A passed-out
   board needs just one Pass.
@@ -58,6 +63,10 @@ under the wrong number).
 
 Only boards with at least one call are exported, in board number order,
 with the closing passes filled in.
+
+Alerted and announced calls (by our agreements, for both sides) are
+included: an `alerts` column in the CSV, an `alerts` list per board in
+the JSON, and PBN notes (`2D =1=` with `[Note "1:Announce: Transfer"]`).
 
 **CSV**: one row per board, for a spreadsheet.
 
@@ -108,11 +117,12 @@ download instead.
 |---|---|
 | `index.html`, `styles.css` | The page and its styles |
 | `js/auction.js` | Bridge rules: dealer, vulnerability, legal calls, end of auction, contract |
+| `js/alerts.js` | Which calls our agreements alert or announce (shared with [bridge-practicer](https://github.com/dave-finlay/bridge-practicer)) |
 | `js/export.js` | CSV, JSON and PBN formatting |
 | `js/store.js` | Storage on the phone (IndexedDB) |
 | `js/app.js` | Screens and event handling |
 | `sw.js`, `manifest.webmanifest` | Offline support and Home Screen install |
-| `test/` | Unit tests for `auction.js` and `export.js` |
+| `test/` | Unit tests for `auction.js`, `alerts.js` and `export.js` |
 | `scripts/` | The dev server and the icon generator |
 | `PLAN.md` | The design and the steps it was built in |
 

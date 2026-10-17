@@ -5,7 +5,8 @@
 // Only recorded boards (at least one call) are exported, in board order,
 // with the closing passes filled in.
 
-import { completeAuction, contract } from './auction.js';
+import { alertsFor } from './alerts.js';
+import { completeAuction, contract, seatOfCall, sideOf } from './auction.js';
 
 const CRLF = '\r\n'; // CSV and the club's PBN files both use Windows line endings
 
@@ -32,6 +33,24 @@ export function contractFields(board) {
   };
 }
 
+// The board's alerted and announced calls, by our agreements, with the
+// side that made each: 'us' (the direction we sat) or 'them'.
+export function boardAlerts(board) {
+  return [...alertsFor(board.dealer, board.auction)].map(([index, { kind, text }]) => ({
+    index,
+    call: board.auction[index],
+    kind,
+    text,
+    side: sideOf(seatOfCall(board.dealer, index)) === board.direction ? 'us' : 'them',
+  }));
+}
+
+// 'Announce: Transfer', with '(opponents)' added for their calls.
+function alertNote({ kind, text, side }) {
+  const label = kind === 'alert' ? 'Alert' : 'Announce';
+  return `${label}: ${text}${side === 'them' ? ' (opponents)' : ''}`;
+}
+
 // '2026-10-14', 'Evening Club', 'csv' → '2026-10-14-evening-club.csv'
 export function fileName(session, extension) {
   const slug = session.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -44,11 +63,12 @@ function csvField(value) {
 }
 
 // One row per board. The auction is the calls from the dealer on,
-// separated by spaces: '1H Pass 2H Pass Pass Pass'.
+// separated by spaces: '1H Pass 2H Pass Pass Pass'. Alerts lists the
+// marked calls: '2D Announce: Transfer; ...'.
 export function toCSV(session) {
   const header = [
     'session', 'date', 'pair', 'partner', 'board', 'dealer', 'vulnerability',
-    'we_sat', 'contract', 'declarer', 'auction',
+    'we_sat', 'contract', 'declarer', 'auction', 'alerts',
   ];
   const rows = recordedBoards(session).map((board) => {
     const { contract: text, declarer } = contractFields(board);
@@ -56,13 +76,14 @@ export function toCSV(session) {
       session.name, session.date, session.pairNumber, session.partner,
       board.number, board.dealer, board.vulnerability, board.direction,
       text, declarer, completeAuction(board.auction).map(exportCall).join(' '),
+      boardAlerts(board).map((a) => `${exportCall(a.call)} ${alertNote(a)}`).join('; '),
     ];
   });
   return [header, ...rows].map((row) => row.map(csvField).join(',')).join(CRLF) + CRLF;
 }
 
 // The sessions as stored, so the file can serve as a backup, with each
-// board's contract and declarer added for convenience. Calls keep the
+// board's contract, declarer and alerts added for convenience. Calls keep the
 // app's own codes: 'P', 'X', 'XX', '1C' ... '7N'. The auction is as
 // entered; the closing passes are implied.
 export function toJSON(sessions) {
@@ -71,7 +92,11 @@ export function toJSON(sessions) {
     version: 1,
     sessions: sessions.map((session) => ({
       ...session,
-      boards: recordedBoards(session).map((board) => ({ ...board, ...contractFields(board) })),
+      boards: recordedBoards(session).map((board) => ({
+        ...board,
+        ...contractFields(board),
+        alerts: boardAlerts(board),
+      })),
     })),
   };
   return `${JSON.stringify(data, null, 2)}\n`;
@@ -83,11 +108,17 @@ function pbnTag(name, value) {
 
 // PBN (Portable Bridge Notation) in import format: the tags that identify
 // each board, then its auction, four calls to a line, starting with the
-// dealer. Boards are separated by a blank line.
+// dealer. An alerted or announced call is followed by a note reference,
+// '2D =1=', explained by a [Note "1:Announce: Transfer"] tag after the
+// auction. Boards are separated by a blank line.
 export function toPBN(session) {
   const games = recordedBoards(session).map((board) => {
     const { contract: text, declarer } = contractFields(board);
-    const calls = completeAuction(board.auction).map(exportCall);
+    const alerts = boardAlerts(board);
+    const calls = completeAuction(board.auction).map((call, i) => {
+      const note = alerts.findIndex((a) => a.index === i);
+      return note < 0 ? exportCall(call) : `${exportCall(call)} =${note + 1}=`;
+    });
     const lines = [];
     for (let i = 0; i < calls.length; i += 4) lines.push(calls.slice(i, i + 4).join(' '));
     return [
@@ -100,6 +131,7 @@ export function toPBN(session) {
       pbnTag('Contract', text),
       pbnTag('Auction', board.dealer),
       ...lines,
+      ...alerts.map((a, n) => pbnTag('Note', `${n + 1}:${alertNote(a)}`)),
     ].join(CRLF);
   });
   return ['% PBN 2.1', '% EXPORT', '', games.join(CRLF + CRLF), ''].join(CRLF);

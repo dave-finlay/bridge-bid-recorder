@@ -29,9 +29,12 @@ import {
   isVulnerable,
   legalCalls,
   nextToAct,
+  seatAfter,
+  seatOfCall,
   sideOf,
   vulnerabilityForBoard,
 } from './auction.js';
+import { alertsFor } from './alerts.js';
 import { fileName, toCSV, toJSON, toPBN } from './export.js';
 import * as store from './store.js';
 
@@ -63,6 +66,7 @@ let session; // the session on screen, kept in step with storage
 let number = null; // the board number on the bidding screen
 let draft = null; // a board on screen that hasn't been recorded yet
 let listOrder = readListOrder(); // 'recent' or 'number'
+let shownMark = null; // a marked call tapped in the auction, or null for the latest
 
 // The list order is a per-phone preference, so it lives in localStorage.
 // Private browsing can make localStorage throw; the default is fine then.
@@ -355,6 +359,30 @@ function renderBoardList() {
       </div>` : '<p class="empty">No boards yet.</p>'}`;
 }
 
+// The reminder for a marked call: the latest call, or one tapped in the
+// auction. For our side it names the seat that must speak, the bidder's
+// partner (the bidder says nothing). For the opponents it says what we'd
+// do, so we can ask if they didn't.
+function markBannerHTML(board, marks) {
+  const index = shownMark ?? board.auction.length - 1;
+  const mark = marks.get(index);
+  if (!mark) return '';
+  const call = board.auction[index];
+  const bidder = seatOfCall(board.dealer, index);
+  const quoted = `“${escapeHTML(mark.text)}”`;
+  let text;
+  if (sideOf(bidder) === board.direction) {
+    const speaker = SEAT_NAMES[seatAfter(bidder, 2)];
+    text = mark.kind === 'alert'
+      ? `<strong>Alert</strong> · ${speaker} says “Alert”<small>${escapeHTML(mark.text)}</small>`
+      : `<strong>Announce</strong> · ${speaker} says ${quoted}`;
+  } else {
+    const verb = mark.kind === 'alert' ? 'alert' : 'announce';
+    text = `<strong>Their ${callHTML(call)}</strong> · we'd ${verb} ${quoted}<small>Ask if they didn't.</small>`;
+  }
+  return `<div class="mark-banner" data-kind="${mark.kind}">${text}</div>`;
+}
+
 function renderBoard(board) {
   const { dealer, auction } = board;
   const legal = legalCalls(dealer, auction);
@@ -372,7 +400,14 @@ function renderBoard(board) {
 
   const cells = [];
   for (let i = 0; i < TABLE_ORDER.indexOf(dealer); i++) cells.push('<div></div>');
-  for (const call of auction) cells.push(`<div>${callHTML(call)}</div>`);
+  // Alerted calls get a red box and announced ones a blue box, the
+  // convention card's colours. Tapping one shows the reminder for it.
+  const marks = alertsFor(dealer, auction);
+  auction.forEach((call, i) => {
+    const mark = marks.get(i);
+    const attributes = mark ? ` data-kind="${mark.kind}" data-mark-index="${i}" role="button"` : '';
+    cells.push(`<div${attributes}>${callHTML(call)}</div>`);
+  });
   if (toAct) cells.push('<div class="cursor">?</div>');
 
   const status = toAct
@@ -418,6 +453,7 @@ function renderBoard(board) {
       <div class="seats">${seats}</div>
       <div class="calls">${cells.join('')}</div>
     </section>
+    ${markBannerHTML(board, marks)}
     <p class="status">${status}</p>
     <div class="box">${BIDS.map(bidButton).join('')}</div>
     <div class="specials">
@@ -527,6 +563,17 @@ const actions = {
 };
 
 app.addEventListener('click', async (event) => {
+  // Tapping a marked call shows its reminder; tapping it again, or any
+  // other tap, goes back to the latest call's.
+  const marked = event.target.closest('[data-mark-index]');
+  const index = marked ? Number(marked.dataset.markIndex) : null;
+  if (marked || shownMark !== null) {
+    shownMark = index === shownMark ? null : index;
+    if (marked || !event.target.closest('button')) {
+      render();
+      return;
+    }
+  }
   const button = event.target.closest('button');
   if (!button || button.disabled) return;
   if (button.form && button.type === 'submit') return; // the submit handler has it
@@ -677,6 +724,7 @@ app.addEventListener('pointerup', endSwipe);
 app.addEventListener('pointercancel', endSwipe);
 
 async function route() {
+  shownMark = null;
   // '#/s/abc/b/17' → ['s', 'abc', 'b', '17']
   const [kind, id, part, boardNumber] = location.hash.slice(2).split('/');
 
