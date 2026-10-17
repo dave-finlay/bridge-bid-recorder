@@ -11,8 +11,6 @@
   --pass: #2f7d4f;
   --double: #c4232b;
   --redouble: #2059b8;
-  --alert: #d33a3a;
-  --announce: #2059b8;
   --off-bg: #e3e7e5;
   --off-text: #b3bab6;
   color-scheme: light dark;
@@ -30,8 +28,6 @@
     --red: #ff6b6b;
     --vul: #b83232;
     --double: #c73838;
-    --alert: #ff6b6b;
-    --announce: #6b9cff;
     --off-bg: #161a18;
     --off-text: #3c4540;
   }
@@ -507,45 +503,6 @@ button {
   to {
     visibility: hidden;
   }
-}
-
-/* Alerted calls get a red box and announced ones a blue box (the ACBL
-   convention card's colours); tapping one shows its reminder. */
-.calls [data-kind] {
-  cursor: pointer;
-}
-
-.calls [data-kind] > span {
-  padding: 0 3px;
-  border-radius: 5px;
-  box-shadow: 0 0 0 1.5px var(--alert);
-}
-
-.calls [data-kind="announce"] > span {
-  box-shadow: 0 0 0 1.5px var(--announce);
-}
-
-.mark-banner {
-  padding: 7px 12px;
-  border-left: 5px solid var(--alert);
-  border-radius: 10px;
-  background: var(--text);
-  color: var(--bg);
-  font-size: 16px;
-}
-
-.mark-banner[data-kind="announce"] {
-  border-left-color: var(--announce);
-}
-
-.mark-banner .red {
-  color: var(--alert);
-}
-
-.mark-banner small {
-  display: block;
-  opacity: 0.85;
-  font-size: 13px;
 }
 
 .status {

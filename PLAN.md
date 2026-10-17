@@ -103,12 +103,11 @@ and `NT`.
 8. **The auction table** shows columns W N E S, as BBO does. Vulnerable
    seats are shown in red, our seats are marked "us", and the dealer is
    marked.
-9. **Alerts and announcements** (added after version 1) follow
-   `js/alerts.js`, shared with bridge-practicer. Calls our agreements
-   mark get a red (alert) or blue (announce) box, and a banner after the
-   call names the seat that must speak, the bidder's partner. The same
-   rules flag the opponents' calls, as a cue to ask if they didn't alert.
-   There's no way to record what the opponents actually alerted.
+9. **No alert reminders.** The app should tell you no more than pencil
+   and paper would. Flagging partner's alertable calls (say, that 2D was
+   new minor forcing) would remind you of agreements you might otherwise
+   forget, which is unauthorized help at the table. A version that did
+   this was tried and removed.
 10. **Not yet:** notes, the result or score, and player names.
 
 ## Steps
