@@ -676,6 +676,35 @@ function endSwipe(event) {
 app.addEventListener('pointerup', endSwipe);
 app.addEventListener('pointercancel', endSwipe);
 
+// Keep the screen on while bidding, so the phone doesn't lock mid-auction.
+// The lock is held only on the bidding screen; the board list lets the
+// phone sleep between hands. The browser drops the lock whenever the app
+// is hidden, so it's asked for again on return, and on any tap in case a
+// request without one was refused.
+let wakeLock = null;
+
+async function keepAwake() {
+  const wanted = screen === 'board' && document.visibilityState === 'visible';
+  if (!wanted) {
+    if (wakeLock === 'pending') return; // settled once the request returns
+    wakeLock?.release();
+    wakeLock = null;
+  } else if (!wakeLock && 'wakeLock' in navigator) {
+    wakeLock = 'pending';
+    try {
+      const lock = await navigator.wakeLock.request('screen');
+      lock.addEventListener('release', () => { if (wakeLock === lock) wakeLock = null; });
+      wakeLock = lock;
+      keepAwake(); // releases it if the board was left while waiting
+    } catch {
+      wakeLock = null;
+    }
+  }
+}
+
+document.addEventListener('visibilitychange', keepAwake);
+app.addEventListener('pointerdown', keepAwake);
+
 async function route() {
   // '#/s/abc/b/17' → ['s', 'abc', 'b', '17']
   const [kind, id, part, boardNumber] = location.hash.slice(2).split('/');
@@ -709,6 +738,7 @@ async function route() {
     return go(todays ? `#/s/${todays.id}` : '#/sessions');
   }
   render();
+  keepAwake();
 }
 
 window.addEventListener('hashchange', () => {
