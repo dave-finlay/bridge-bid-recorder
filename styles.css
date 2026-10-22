@@ -597,7 +597,7 @@ button {
   color: #fff;
 }
 
-.lead-picker .ranks button:disabled {
+.lead-picker .suits button:disabled {
   border-color: transparent;
   background: var(--off-bg);
   color: var(--off-text);

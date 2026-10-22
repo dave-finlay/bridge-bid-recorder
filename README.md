@@ -17,7 +17,7 @@ reviewed afterwards.
 - **Closing passes are assumed.** Enter the auction up to the last bid
   (or double) and the three passes that end it are filled in. A passed-out
   board needs just one Pass.
-- **Opening lead**, optional: tap **Lead**, then a suit and a rank. The
+- **Opening lead**, optional: tap **Lead**, then a rank and a suit. The
   app works out who led (declarer's left-hand opponent).
 - **Keeps the screen on** while you're entering an auction, so the phone
   doesn't lock mid-auction. The board list lets it sleep again.

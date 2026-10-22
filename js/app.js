@@ -64,7 +64,7 @@ let session; // the session on screen, kept in step with storage
 let number = null; // the board number on the bidding screen
 let draft = null; // a board on screen that hasn't been recorded yet
 let listOrder = readListOrder(); // 'recent' or 'number'
-let leadPicker = null; // { suit } while choosing the opening lead; suit is null until tapped
+let leadPicker = null; // { rank } while choosing the opening lead; rank is null until tapped
 
 // The list order is a per-phone preference, so it lives in localStorage.
 // Private browsing can make localStorage throw; the default is fine then.
@@ -203,7 +203,7 @@ function callHTML(call) {
   return `<span class="${isRed(call) ? 'red' : ''}">${bidLabel(call)}</span>`;
 }
 
-const RANKS = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
+const RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A'];
 const rankLabel = (rank) => (rank === 'T' ? '10' : rank);
 
 // A card as PBN writes it, 'SK' or 'HT', shown as ♠K or ♥10.
@@ -451,23 +451,22 @@ function renderBoard(board) {
   calls.scrollTop = calls.scrollHeight;
 }
 
-// Takes the bidding box's place while choosing the lead: a suit, then a
-// rank, which saves it. The current lead, if any, is highlighted.
+// Takes the bidding box's place while choosing the lead: a rank, then a
+// suit, which saves it ("10 of spades"). Both run low to high, as in the
+// bidding box. The current lead, if any, is highlighted.
 function leadPickerHTML(board, final) {
   const leader = seatAfter(final.declarer);
+  const rankButton = (rank) =>
+    `<button class="${rank === leadPicker.rank ? 'on' : ''}" data-action="lead-rank" data-rank="${rank}">${rankLabel(rank)}</button>`;
   const suitButton = (suit) => {
-    const classes = [suit === 'H' || suit === 'D' ? 'red' : '', suit === leadPicker.suit ? 'on' : ''];
-    return `<button class="${classes.join(' ').trim()}" data-action="lead-suit" data-suit="${suit}">${SYMBOLS[suit]}</button>`;
-  };
-  const rankButton = (rank) => {
-    const on = board.lead === `${leadPicker.suit}${rank}`;
-    return `<button class="${on ? 'on' : ''}" data-action="lead-rank" data-rank="${rank}"${leadPicker.suit ? '' : ' disabled'}>${rankLabel(rank)}</button>`;
+    const classes = [suit === 'H' || suit === 'D' ? 'red' : '', board.lead === `${suit}${leadPicker.rank}` ? 'on' : ''];
+    return `<button class="${classes.join(' ').trim()}" data-action="lead-suit" data-suit="${suit}"${leadPicker.rank ? '' : ' disabled'}>${SYMBOLS[suit]}</button>`;
   };
   return `
     <div class="lead-picker">
       <p>${SEAT_NAMES[leader]} leads against ${resultHTML(board)}</p>
-      <div class="suits">${['S', 'H', 'D', 'C'].map(suitButton).join('')}</div>
       <div class="ranks">${RANKS.map(rankButton).join('')}</div>
+      <div class="suits">${['C', 'D', 'H', 'S'].map(suitButton).join('')}</div>
       <div class="lead-actions">
         ${board.lead ? '<button class="secondary" data-action="remove-lead">Remove lead</button>' : ''}
         <button class="secondary" data-action="cancel-lead">Cancel</button>
@@ -571,15 +570,15 @@ const actions = {
     return true;
   },
   lead(button, board) {
-    leadPicker = { suit: board.lead?.[0] ?? null };
+    leadPicker = { rank: board.lead?.[1] ?? null };
     render();
   },
-  'lead-suit'(button) {
-    leadPicker.suit = button.dataset.suit;
+  'lead-rank'(button) {
+    leadPicker.rank = button.dataset.rank;
     render();
   },
-  'lead-rank'(button, board) {
-    board.lead = `${leadPicker.suit}${button.dataset.rank}`;
+  'lead-suit'(button, board) {
+    board.lead = `${button.dataset.suit}${leadPicker.rank}`;
     leadPicker = null;
     return true;
   },

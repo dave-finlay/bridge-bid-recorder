@@ -109,7 +109,7 @@ and `NT`.
    forget, which is unauthorized help at the table. A version that did
    this was tried and removed.
 10. **The opening lead** is optional, entered with the Lead button once
-    the auction has a bid, as a suit then a rank. It's stored as a card
+    the auction has a bid, as a rank then a suit. It's stored as a card
     (`SK`, `HT`); who led is always worked out from the declarer, so a
     corrected auction keeps the card and moves the leader. Undoing back
     past the last bid removes the lead. Entering a lead ends the auction
