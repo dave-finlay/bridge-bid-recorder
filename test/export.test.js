@@ -2,8 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { contractFields, exportCall, fileName, toCSV, toJSON, toPBN } from '../js/export.js';
 
-const board = (number, dealer, vulnerability, direction, auction) =>
-  ({ number, dealer, vulnerability, direction, auction: auction ? auction.split(' ') : [] });
+const board = (number, dealer, vulnerability, direction, auction, lead) => ({
+  number, dealer, vulnerability, direction, auction: auction ? auction.split(' ') : [],
+  ...(lead && { lead }),
+});
 
 const session = {
   id: 'abc',
@@ -16,7 +18,7 @@ const session = {
   // In the order played; board 2 has no calls, so it isn't exported.
   boards: [
     board(14, 'E', 'None', 'NS', '1N P 3N'),
-    board(13, 'N', 'All', 'NS', '1H X 4H'),
+    board(13, 'N', 'All', 'NS', '1H X 4H', 'ST'),
     board(2, 'E', 'NS', 'EW', ''),
     board(15, 'S', 'NS', 'EW', 'P'),
   ],
@@ -44,10 +46,10 @@ test('fileName uses the date and a tidy version of the name', () => {
 
 test('CSV: one row per recorded board, in board order, passes filled in', () => {
   assert.equal(toCSV(session), [
-    'session,date,pair,partner,board,dealer,vulnerability,we_sat,contract,declarer,auction',
-    'Evening Club,2026-10-14,3,Alex,13,N,All,NS,4H,N,1H X 4H Pass Pass Pass',
-    'Evening Club,2026-10-14,3,Alex,14,E,None,NS,3NT,E,1NT Pass 3NT Pass Pass Pass',
-    'Evening Club,2026-10-14,3,Alex,15,S,NS,EW,Pass,,Pass Pass Pass Pass',
+    'session,date,pair,partner,board,dealer,vulnerability,we_sat,contract,declarer,auction,lead',
+    'Evening Club,2026-10-14,3,Alex,13,N,All,NS,4H,N,1H X 4H Pass Pass Pass,ST',
+    'Evening Club,2026-10-14,3,Alex,14,E,None,NS,3NT,E,1NT Pass 3NT Pass Pass Pass,',
+    'Evening Club,2026-10-14,3,Alex,15,S,NS,EW,Pass,,Pass Pass Pass Pass,',
     '',
   ].join('\r\n'));
 });
@@ -65,11 +67,11 @@ test('JSON keeps the stored data, adds contracts, and drops unrecorded boards', 
   assert.deepEqual(data.sessions[0].boards.map((b) => b.number), [13, 14, 15]);
   assert.deepEqual(data.sessions[0].boards[0], {
     number: 13, dealer: 'N', vulnerability: 'All', direction: 'NS',
-    auction: ['1H', 'X', '4H'], contract: '4H', declarer: 'N',
+    auction: ['1H', 'X', '4H'], lead: 'ST', contract: '4H', declarer: 'N',
   });
 });
 
-test('PBN: tags and auction for each board, four calls to a line', () => {
+test('PBN: tags, auction four calls to a line, and the lead as a first trick', () => {
   assert.equal(toPBN(session), [
     '% PBN 2.1',
     '% EXPORT',
@@ -84,6 +86,9 @@ test('PBN: tags and auction for each board, four calls to a line', () => {
     '[Auction "N"]',
     '1H X 4H Pass',
     'Pass Pass',
+    '[Play "E"]',
+    'ST - - -',
+    '*',
     '',
     '[Event "Evening Club"]',
     '[Date "2026.10.14"]',

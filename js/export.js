@@ -5,7 +5,7 @@
 // Only recorded boards (at least one call) are exported, in board order,
 // with the closing passes filled in.
 
-import { completeAuction, contract } from './auction.js';
+import { completeAuction, contract, seatAfter } from './auction.js';
 
 const CRLF = '\r\n'; // CSV and the club's PBN files both use Windows line endings
 
@@ -44,18 +44,19 @@ function csvField(value) {
 }
 
 // One row per board. The auction is the calls from the dealer on,
-// separated by spaces: '1H Pass 2H Pass Pass Pass'.
+// separated by spaces: '1H Pass 2H Pass Pass Pass'. The lead is a card
+// as PBN writes it ('SK', 'HT'), or blank.
 export function toCSV(session) {
   const header = [
     'session', 'date', 'pair', 'partner', 'board', 'dealer', 'vulnerability',
-    'we_sat', 'contract', 'declarer', 'auction',
+    'we_sat', 'contract', 'declarer', 'auction', 'lead',
   ];
   const rows = recordedBoards(session).map((board) => {
     const { contract: text, declarer } = contractFields(board);
     return [
       session.name, session.date, session.pairNumber, session.partner,
       board.number, board.dealer, board.vulnerability, board.direction,
-      text, declarer, completeAuction(board.auction).map(exportCall).join(' '),
+      text, declarer, completeAuction(board.auction).map(exportCall).join(' '), board.lead,
     ];
   });
   return [header, ...rows].map((row) => row.map(csvField).join(',')).join(CRLF) + CRLF;
@@ -83,7 +84,9 @@ function pbnTag(name, value) {
 
 // PBN (Portable Bridge Notation) in import format: the tags that identify
 // each board, then its auction, four calls to a line, starting with the
-// dealer. Boards are separated by a blank line.
+// dealer. An opening lead is the first trick of a play section, with the
+// other three cards unknown ('-') and '*' marking where the record stops.
+// Boards are separated by a blank line.
 export function toPBN(session) {
   const games = recordedBoards(session).map((board) => {
     const { contract: text, declarer } = contractFields(board);
@@ -100,6 +103,7 @@ export function toPBN(session) {
       pbnTag('Contract', text),
       pbnTag('Auction', board.dealer),
       ...lines,
+      ...(board.lead ? [pbnTag('Play', seatAfter(declarer)), `${board.lead} - - -`, '*'] : []),
     ].join(CRLF);
   });
   return ['% PBN 2.1', '% EXPORT', '', games.join(CRLF + CRLF), ''].join(CRLF);

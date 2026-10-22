@@ -29,6 +29,7 @@ import {
   isVulnerable,
   legalCalls,
   nextToAct,
+  seatAfter,
   sideOf,
   vulnerabilityForBoard,
 } from './auction.js';
@@ -63,6 +64,7 @@ let session; // the session on screen, kept in step with storage
 let number = null; // the board number on the bidding screen
 let draft = null; // a board on screen that hasn't been recorded yet
 let listOrder = readListOrder(); // 'recent' or 'number'
+let leadPicker = null; // { suit } while choosing the opening lead; suit is null until tapped
 
 // The list order is a per-phone preference, so it lives in localStorage.
 // Private browsing can make localStorage throw; the default is fine then.
@@ -201,6 +203,16 @@ function callHTML(call) {
   return `<span class="${isRed(call) ? 'red' : ''}">${bidLabel(call)}</span>`;
 }
 
+const RANKS = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
+const rankLabel = (rank) => (rank === 'T' ? '10' : rank);
+
+// A card as PBN writes it, 'SK' or 'HT', shown as ♠K or ♥10.
+function cardHTML(card) {
+  const suit = card[0];
+  const red = suit === 'H' || suit === 'D';
+  return `<span class="${red ? 'red' : ''}">${SYMBOLS[suit]}${rankLabel(card[1])}</span>`;
+}
+
 // The contract, assuming the closing passes: "4♥X by North" or "Passed out".
 function resultHTML(board) {
   if (board.auction.length === 0) return 'No calls';
@@ -324,7 +336,7 @@ function renderBoardList() {
       content: `
         <span class="number">${board.number}</span>
         <span class="summary">
-          <span class="title">${resultHTML(board)}</span>
+          <span class="title">${resultHTML(board)}${board.lead ? ` · ${cardHTML(board.lead)} lead` : ''}</span>
           <span class="details">Dealer ${board.dealer} · Vul ${board.vulnerability} · We sit ${board.direction}</span>
         </span>`,
     }))
@@ -358,7 +370,11 @@ function renderBoardList() {
 function renderBoard(board) {
   const { dealer, auction } = board;
   const legal = legalCalls(dealer, auction);
-  const toAct = isComplete(auction) ? null : nextToAct(dealer, auction);
+  const final = contract(dealer, auction);
+  // A lead (or choosing one) means the auction is over, even if the closing
+  // passes weren't entered.
+  const over = isComplete(auction) || Boolean(board.lead || leadPicker);
+  const toAct = over ? null : nextToAct(dealer, auction);
 
   const seats = TABLE_ORDER.map((seat) => {
     const classes = ['seat'];
@@ -418,17 +434,45 @@ function renderBoard(board) {
       <div class="seats">${seats}</div>
       <div class="calls">${cells.join('')}</div>
     </section>
-    <p class="status">${status}</p>
+    <div class="status-row">
+      <p class="status">${status}</p>
+      <button class="lead" data-action="lead"${final && !leadPicker ? '' : ' disabled'}>Lead${board.lead ? ` ${cardHTML(board.lead)}` : ''}</button>
+    </div>
+    ${leadPicker ? leadPickerHTML(board, final) : `
     <div class="box">${BIDS.map(bidButton).join('')}</div>
     <div class="specials">
       ${callButton('P', 'Pass', 'pass')}
       ${callButton('X', 'X', 'double')}
       ${callButton('XX', 'XX', 'redouble')}
       <button class="undo" data-action="undo"${auction.length ? '' : ' disabled'}>Undo</button>
-    </div>`;
+    </div>`}`;
 
   const calls = app.querySelector('.calls');
   calls.scrollTop = calls.scrollHeight;
+}
+
+// Takes the bidding box's place while choosing the lead: a suit, then a
+// rank, which saves it. The current lead, if any, is highlighted.
+function leadPickerHTML(board, final) {
+  const leader = seatAfter(final.declarer);
+  const suitButton = (suit) => {
+    const classes = [suit === 'H' || suit === 'D' ? 'red' : '', suit === leadPicker.suit ? 'on' : ''];
+    return `<button class="${classes.join(' ').trim()}" data-action="lead-suit" data-suit="${suit}">${SYMBOLS[suit]}</button>`;
+  };
+  const rankButton = (rank) => {
+    const on = board.lead === `${leadPicker.suit}${rank}`;
+    return `<button class="${on ? 'on' : ''}" data-action="lead-rank" data-rank="${rank}"${leadPicker.suit ? '' : ' disabled'}>${rankLabel(rank)}</button>`;
+  };
+  return `
+    <div class="lead-picker">
+      <p>${SEAT_NAMES[leader]} leads against ${resultHTML(board)}</p>
+      <div class="suits">${['S', 'H', 'D', 'C'].map(suitButton).join('')}</div>
+      <div class="ranks">${RANKS.map(rankButton).join('')}</div>
+      <div class="lead-actions">
+        ${board.lead ? '<button class="secondary" data-action="remove-lead">Remove lead</button>' : ''}
+        <button class="secondary" data-action="cancel-lead">Cancel</button>
+      </div>
+    </div>`;
 }
 
 function render() {
@@ -518,11 +562,35 @@ const actions = {
   },
   undo(button, board) {
     board.auction.pop();
+    // Undoing back past the last bid leaves no contract, so nothing to lead against.
+    if (!contract(board.dealer, board.auction)) delete board.lead;
     return true;
   },
   direction(button, board) {
     board.direction = button.dataset.direction;
     return true;
+  },
+  lead(button, board) {
+    leadPicker = { suit: board.lead?.[0] ?? null };
+    render();
+  },
+  'lead-suit'(button) {
+    leadPicker.suit = button.dataset.suit;
+    render();
+  },
+  'lead-rank'(button, board) {
+    board.lead = `${leadPicker.suit}${button.dataset.rank}`;
+    leadPicker = null;
+    return true;
+  },
+  'remove-lead'(button, board) {
+    delete board.lead;
+    leadPicker = null;
+    return true;
+  },
+  'cancel-lead'() {
+    leadPicker = null;
+    render();
   },
 };
 
@@ -708,6 +776,7 @@ app.addEventListener('pointerdown', keepAwake);
 async function route() {
   // '#/s/abc/b/17' → ['s', 'abc', 'b', '17']
   const [kind, id, part, boardNumber] = location.hash.slice(2).split('/');
+  leadPicker = null;
 
   if (kind === 's') {
     if (session?.id !== id) {

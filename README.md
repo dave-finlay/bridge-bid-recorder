@@ -17,6 +17,10 @@ reviewed afterwards.
 - **Closing passes are assumed.** Enter the auction up to the last bid
   (or double) and the three passes that end it are filled in. A passed-out
   board needs just one Pass.
+- **Opening lead**, optional: tap **Lead**, then a suit and a rank. The
+  app works out who led (declarer's left-hand opponent).
+- **Keeps the screen on** while you're entering an auction, so the phone
+  doesn't lock mid-auction. The board list lets it sleep again.
 - **Dealer and vulnerability** follow the board number on the standard
   16-board cycle, for any number of boards, and can be overridden.
 - **Sessions** have a name, date, board count, pair number and partner.
@@ -46,8 +50,10 @@ clearing Safari's website data, deletes the sessions stored in it.
 2. For each board, **New board**. It offers the next board number and the
    direction you sat on the last board. Tap the board number to pick
    another, or **NS / EW** to change direction.
-3. Tap the calls in order, starting with the dealer's. **OK** goes back to
-   the list; everything is saved as you tap.
+3. Tap the calls in order, starting with the dealer's. When the opening
+   lead is known, tap **Lead** to record it (it replaces the bidding box
+   until you pick a card or cancel). **OK** goes back to the list;
+   everything is saved as you tap.
 
 In the board list, tap a board to edit it and swipe left to delete it.
 On the bidding screen, ‹ › move between boards, while the board number
@@ -62,16 +68,18 @@ with the closing passes filled in.
 **CSV**: one row per board, for a spreadsheet.
 
 ```
-session,date,pair,partner,board,dealer,vulnerability,we_sat,contract,declarer,auction
-Evening Club,2026-10-14,3,Alex,13,N,All,NS,4H,N,1H X 4H Pass Pass Pass
+session,date,pair,partner,board,dealer,vulnerability,we_sat,contract,declarer,auction,lead
+Evening Club,2026-10-14,3,Alex,13,N,All,NS,4H,N,1H X 4H Pass Pass Pass,ST
 ```
 
 **JSON**: sessions exactly as stored, plus each board's contract and
 declarer, so it doubles as a backup. Calls use the app's own codes:
-`P`, `X`, `XX`, and `1C` to `7N`.
+`P`, `X`, `XX`, and `1C` to `7N`. A lead is a card such as `ST` (the
+ten of spades).
 
 **PBN**: [Portable Bridge Notation](https://www.tistis.nl/pbn/), with
-each board's identifying tags and its `[Auction]`. Clubs typically
+each board's identifying tags, its `[Auction]`, and the lead (if
+entered) as the first trick of a `[Play]` section. Clubs typically
 publish a PBN hand record with the deals and results but no auctions;
 this one can be read alongside it, board by board.
 
@@ -86,6 +94,9 @@ this one can be read alongside it, board by board.
 [Auction "N"]
 1H X 4H Pass
 Pass Pass
+[Play "E"]
+ST - - -
+*
 ```
 
 ## Development

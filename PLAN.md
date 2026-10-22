@@ -108,7 +108,16 @@ and `NT`.
    new minor forcing) would remind you of agreements you might otherwise
    forget, which is unauthorized help at the table. A version that did
    this was tried and removed.
-10. **Not yet:** notes, the result or score, and player names.
+10. **The opening lead** is optional, entered with the Lead button once
+    the auction has a bid, as a suit then a rank. It's stored as a card
+    (`SK`, `HT`); who led is always worked out from the declarer, so a
+    corrected auction keeps the card and moves the leader. Undoing back
+    past the last bid removes the lead. Entering a lead ends the auction
+    on screen, as the closing passes would. PBN exports it as the first
+    trick of a `[Play]` section.
+11. **The screen stays on** on the bidding screen (a screen wake lock),
+    and is allowed to sleep on the other screens.
+12. **Not yet:** notes, the result or score, and player names.
 
 ## Steps
 
