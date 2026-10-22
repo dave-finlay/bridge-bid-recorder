@@ -625,6 +625,12 @@ button {
   font-weight: 600;
 }
 
+/* Suit symbols a point larger than the level, to pick out at a glance.
+   The buttons' fixed height keeps the grid the same size. */
+.box .suit {
+  font-size: calc(1em + 1pt);
+}
+
 .box button:active:not(:disabled) {
   background: var(--felt);
   color: #fff;

@@ -192,8 +192,10 @@ function escapeHTML(text) {
 
 const isRed = (call) => call[1] === 'H' || call[1] === 'D';
 
+// The suit symbol gets its own span so the bidding box can enlarge it.
 function bidLabel(bid) {
-  return `${bid[0]}${SYMBOLS[bid[1]]}`;
+  const strain = bid[1] === 'N' ? SYMBOLS.N : `<span class="suit">${SYMBOLS[bid[1]]}</span>`;
+  return `${bid[0]}${strain}`;
 }
 
 function callHTML(call) {
