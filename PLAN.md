@@ -124,7 +124,11 @@ and `NT`.
     it, so a corrected contract re-reads the same tricks. The duplicate
     score is shown signed from our side. Undoing back past the last bid
     removes it, like the lead.
-13. **Not yet:** notes and player names.
+13. **Flags for review**: a long press (half a second) on a call in the
+    auction flags or unflags it; the flag button beside NS / EW flags the
+    whole board. Stored as `flagged: true` and `flaggedCalls` (positions
+    in the auction). Undoing a call drops its flag.
+14. **Not yet:** notes and player names.
 
 ## Steps
 

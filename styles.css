@@ -13,6 +13,8 @@
   --redouble: #2059b8;
   --off-bg: #e3e7e5;
   --off-text: #b3bab6;
+  --flag: #d98a00;
+  --flag-bg: #fdefd0;
   color-scheme: light dark;
 }
 
@@ -30,6 +32,8 @@
     --double: #c73838;
     --off-bg: #161a18;
     --off-text: #3c4540;
+    --flag: #f0a422;
+    --flag-bg: #4a3610;
   }
 }
 
@@ -473,6 +477,63 @@ button {
   align-content: start;
   overflow-y: auto;
   padding: 2px 0;
+  -webkit-user-select: none; /* a long press flags a call, not selects it */
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* A call flagged for review (long-press to toggle). */
+.calls > .flagged {
+  margin: 0 4px;
+  border-radius: 8px;
+  background: var(--flag-bg);
+  box-shadow: inset 0 0 0 1.5px var(--flag);
+}
+
+/* The board's flag button, after the NS / EW toggle; filled when on. */
+.settings .flag {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.settings .flag.on {
+  border-color: var(--flag);
+  background: var(--flag-bg);
+  color: var(--flag);
+}
+
+.flag svg,
+.flag-mark svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.flag.on svg,
+.flag-mark svg {
+  fill: currentColor;
+}
+
+/* On a flagged board's row in the board list. */
+.flag-mark {
+  margin-left: 6px;
+  color: var(--flag);
+  vertical-align: -2px;
+}
+
+.flag-mark svg {
+  width: 15px;
+  height: 15px;
 }
 
 .calls > div {

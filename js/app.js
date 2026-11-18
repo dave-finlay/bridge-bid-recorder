@@ -48,6 +48,8 @@ const SYMBOLS = { C: '♣︎', D: '♦︎', H: '♥︎', S: '♠︎', N: 'NT' };
 const CHEVRON_LEFT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
 const CHEVRON_RIGHT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>';
 const CHEVRON_DOWN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+const FLAG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4h12l-2.5 4 2.5 4H5"/></svg>';
+const LONG_PRESS_MS = 500; // holding a call this long flags it
 const MAX_BOARDS = 36; // boards offered by pickers when the board count isn't known
 const ORDER_KEY = 'boardListOrder';
 const DELETE_WIDTH = 88; // px a row slides left to show its Delete button
@@ -252,6 +254,11 @@ function summaryHTML(board) {
   return parts.join(' · ');
 }
 
+// Flagged for review: the whole board, or any of its calls.
+function isFlagged(board) {
+  return Boolean(board.flagged || board.flaggedCalls?.length);
+}
+
 // 'Wed, Oct 14, 2026 · 5 of 18 boards · Pair 3 · with Alex'
 function sessionDetailsHTML(s) {
   const recorded = s.boards.length;
@@ -366,7 +373,7 @@ function renderBoardList() {
       content: `
         <span class="number">${board.number}</span>
         <span class="summary">
-          <span class="title">${summaryHTML(board)}</span>
+          <span class="title">${summaryHTML(board)}${isFlagged(board) ? `<span class="flag-mark">${FLAG}</span>` : ''}</span>
           <span class="details">Dealer ${board.dealer} · Vul ${board.vulnerability} · We sit ${board.direction}</span>
         </span>`,
     }))
@@ -418,7 +425,10 @@ function renderBoard(board) {
 
   const cells = [];
   for (let i = 0; i < TABLE_ORDER.indexOf(dealer); i++) cells.push('<div></div>');
-  for (const call of auction) cells.push(`<div>${callHTML(call)}</div>`);
+  auction.forEach((call, index) => {
+    const flagged = board.flaggedCalls?.includes(index) ? ' class="flagged"' : '';
+    cells.push(`<div data-index="${index}"${flagged}>${callHTML(call)}</div>`);
+  });
   if (toAct) cells.push('<div class="cursor">?</div>');
 
   const score = final && board.tricks != null ? ` · ${scoreText(board)}` : '';
@@ -461,6 +471,7 @@ function renderBoard(board) {
       <label>Dealer <select data-field="dealer">${options(SEATS, dealer)}</select></label>
       <label>Vul <select data-field="vulnerability">${options(VULNERABILITIES, board.vulnerability)}</select></label>
       <div class="toggle" role="group" aria-label="We sit">${directionButton('NS')}${directionButton('EW')}</div>
+      <button class="flag${board.flagged ? ' on' : ''}" data-action="flag" aria-label="Flag board for review" aria-pressed="${Boolean(board.flagged)}">${FLAG}</button>
     </div>
     <section class="auction">
       <div class="seats">${seats}</div>
@@ -618,6 +629,7 @@ const actions = {
   },
   undo(button, board) {
     board.auction.pop();
+    setCallFlag(board, board.auction.length, false);
     // Undoing back past the last bid leaves no contract, so no lead or result.
     if (!contract(board.dealer, board.auction)) {
       delete board.lead;
@@ -627,6 +639,11 @@ const actions = {
   },
   direction(button, board) {
     board.direction = button.dataset.direction;
+    return true;
+  },
+  flag(button, board) {
+    if (board.flagged) delete board.flagged;
+    else board.flagged = true;
     return true;
   },
   lead(button, board) {
@@ -816,6 +833,47 @@ function endSwipe(event) {
 
 app.addEventListener('pointerup', endSwipe);
 app.addEventListener('pointercancel', endSwipe);
+
+// Flags or unflags one call (by its position in the auction) for review.
+function setCallFlag(board, index, on) {
+  const flags = (board.flaggedCalls ?? []).filter((i) => i !== index);
+  if (on) flags.push(index);
+  flags.sort((a, b) => a - b);
+  if (flags.length) board.flaggedCalls = flags;
+  else delete board.flaggedCalls;
+}
+
+// Long-press a call in the auction to flag it, or to clear its flag.
+// Moving the finger (to scroll the auction) or lifting it early cancels.
+let press = null; // { timer, x, y } while a call is held
+
+function cancelPress() {
+  if (press) clearTimeout(press.timer);
+  press = null;
+}
+
+app.addEventListener('pointerdown', (event) => {
+  const cell = event.target.closest('.calls [data-index]');
+  if (!cell || screen !== 'board') return;
+  const timer = setTimeout(() => {
+    press = null;
+    const board = findBoard(number) ?? draft;
+    const index = Number(cell.dataset.index);
+    setCallFlag(board, index, !board.flaggedCalls?.includes(index));
+    commit(board);
+    render();
+  }, LONG_PRESS_MS);
+  press = { timer, x: event.clientX, y: event.clientY };
+});
+app.addEventListener('pointermove', (event) => {
+  if (press && Math.hypot(event.clientX - press.x, event.clientY - press.y) > 10) cancelPress();
+});
+app.addEventListener('pointerup', cancelPress);
+app.addEventListener('pointercancel', cancelPress);
+// No text selection or callout menu on a held call.
+app.addEventListener('contextmenu', (event) => {
+  if (event.target.closest('.calls')) event.preventDefault();
+});
 
 // Keep the screen on while bidding, so the phone doesn't lock mid-auction.
 // The lock is held only on the bidding screen; the board list lets the

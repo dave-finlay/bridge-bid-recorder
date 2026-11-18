@@ -22,6 +22,9 @@ reviewed afterwards.
 - **Result and score**, optional: tap **Result** and pick from every
   possible outcome (=, +1 … or −1 …). The duplicate score is shown signed
   from our side: +420 if we made it, −50 if we went down.
+- **Flag for review.** Long-press a call in the auction to flag it
+  (again to clear it), or tap the flag by NS / EW to flag the whole
+  board. Flagged boards show a flag in the board list.
 - **Keeps the screen on** while you're entering an auction, so the phone
   doesn't lock mid-auction. The board list lets it sleep again.
 - **Dealer and vulnerability** follow the board number on the standard
@@ -68,23 +71,27 @@ under the wrong number).
 Only boards with at least one call are exported, in board number order,
 with the closing passes filled in.
 
-**CSV**: one row per board, for a spreadsheet.
+**CSV**: one row per board, for a spreadsheet. Flagged calls are
+starred in the auction, and `flagged` is `yes` for a flagged board.
 
 ```
-session,date,pair,partner,board,dealer,vulnerability,we_sat,contract,declarer,auction,lead,tricks,our_score
-Evening Club,2026-10-14,3,Alex,13,N,All,NS,4H,N,1H X 4H Pass Pass Pass,ST,9,-100
+session,date,pair,partner,board,dealer,vulnerability,we_sat,contract,declarer,auction,lead,tricks,our_score,flagged
+Evening Club,2026-10-14,3,Alex,13,N,All,NS,4H,N,1H X 4H* Pass Pass Pass,ST,9,-100,yes
 ```
 
 **JSON**: sessions exactly as stored, plus each board's contract and
 declarer, so it doubles as a backup. Calls use the app's own codes:
 `P`, `X`, `XX`, and `1C` to `7N`. A lead is a card such as `ST` (the
 ten of spades), `tricks` are declarer's, and `ourScore` is added when
-the result is entered.
+the result is entered. Flags are `flagged: true` on the board and
+`flaggedCalls`, the positions of flagged calls in the auction (from 0).
 
 **PBN**: [Portable Bridge Notation](https://www.tistis.nl/pbn/), with
 each board's identifying tags, its `[Auction]`, the `[Result]` (tricks
 taken by declarer) and the lead as the first trick of a `[Play]`
-section, if entered. Clubs typically
+section, if entered. A flagged call gets a note (`4H =1=` with
+`[Note "1:Flagged for review"]`), and a flagged board the comment
+`{Flagged for review}`. Clubs typically
 publish a PBN hand record with the deals and results but no auctions;
 this one can be read alongside it, board by board.
 

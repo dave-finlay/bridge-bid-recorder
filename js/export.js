@@ -47,19 +47,22 @@ function csvField(value) {
 // One row per board. The auction is the calls from the dealer on,
 // separated by spaces: '1H Pass 2H Pass Pass Pass'. The lead is a card
 // as PBN writes it ('SK', 'HT'). Tricks are declarer's, and our score is
-// signed from our side. Each is blank if not entered.
+// signed from our side. Each is blank if not entered. Calls flagged for
+// review are starred ('2D*'), and flagged is 'yes' for a flagged board.
 export function toCSV(session) {
   const header = [
     'session', 'date', 'pair', 'partner', 'board', 'dealer', 'vulnerability',
-    'we_sat', 'contract', 'declarer', 'auction', 'lead', 'tricks', 'our_score',
+    'we_sat', 'contract', 'declarer', 'auction', 'lead', 'tricks', 'our_score', 'flagged',
   ];
   const rows = recordedBoards(session).map((board) => {
     const { contract: text, declarer } = contractFields(board);
+    const auction = completeAuction(board.auction)
+      .map((call, i) => `${exportCall(call)}${board.flaggedCalls?.includes(i) ? '*' : ''}`);
     return [
       session.name, session.date, session.pairNumber, session.partner,
       board.number, board.dealer, board.vulnerability, board.direction,
-      text, declarer, completeAuction(board.auction).map(exportCall).join(' '), board.lead,
-      board.tricks, ourScore(board),
+      text, declarer, auction.join(' '), board.lead,
+      board.tricks, ourScore(board), board.flagged ? 'yes' : '',
     ];
   });
   return [header, ...rows].map((row) => row.map(csvField).join(',')).join(CRLF) + CRLF;
@@ -91,13 +94,18 @@ function pbnTag(name, value) {
 
 // PBN (Portable Bridge Notation) in import format: the tags that identify
 // each board, then its auction, four calls to a line, starting with the
-// dealer. An opening lead is the first trick of a play section, with the
-// other three cards unknown ('-') and '*' marking where the record stops.
-// Boards are separated by a blank line.
+// dealer. Calls flagged for review get a note ('2D =1=' with
+// [Note "1:Flagged for review"]), and a flagged board a {comment}. An
+// opening lead is the first trick of a play section, with the other three
+// cards unknown ('-') and '*' marking where the record stops. Boards are
+// separated by a blank line.
 export function toPBN(session) {
   const games = recordedBoards(session).map((board) => {
     const { contract: text, declarer } = contractFields(board);
-    const calls = completeAuction(board.auction).map(exportCall);
+    const flagged = board.flaggedCalls ?? [];
+    const calls = completeAuction(board.auction)
+      .map((call, i) => `${exportCall(call)}${flagged.includes(i) ? ` =${flagged.indexOf(i) + 1}=` : ''}`);
+    const notes = flagged.map((_, n) => pbnTag('Note', `${n + 1}:Flagged for review`));
     const lines = [];
     for (let i = 0; i < calls.length; i += 4) lines.push(calls.slice(i, i + 4).join(' '));
     return [
@@ -111,7 +119,9 @@ export function toPBN(session) {
       ...(board.tricks != null && declarer ? [pbnTag('Result', board.tricks)] : []),
       pbnTag('Auction', board.dealer),
       ...lines,
+      ...notes,
       ...(board.lead ? [pbnTag('Play', seatAfter(declarer)), `${board.lead} - - -`, '*'] : []),
+      ...(board.flagged ? ['{Flagged for review}'] : []),
     ].join(CRLF);
   });
   return ['% PBN 2.1', '% EXPORT', '', games.join(CRLF + CRLF), ''].join(CRLF);

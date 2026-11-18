@@ -8,7 +8,7 @@
 // When adding a file to the app, add it to FILES and bump the version in
 // CACHE, so the new list is fetched in full.
 
-const CACHE = 'bids-v6';
+const CACHE = 'bids-v7';
 const FILES = [
   './',
   'index.html',
