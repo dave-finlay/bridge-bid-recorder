@@ -34,6 +34,7 @@ import {
   vulnerabilityForBoard,
 } from './auction.js';
 import { fileName, toCSV, toJSON, toPBN } from './export.js';
+import { ourScore, resultLabel, tricksNeeded } from './score.js';
 import * as store from './store.js';
 
 const app = document.getElementById('app');
@@ -64,7 +65,9 @@ let session; // the session on screen, kept in step with storage
 let number = null; // the board number on the bidding screen
 let draft = null; // a board on screen that hasn't been recorded yet
 let listOrder = readListOrder(); // 'recent' or 'number'
-let leadPicker = null; // { rank } while choosing the opening lead; rank is null until tapped
+// The panel in the bidding box's place, if any: { kind: 'lead', rank } while
+// choosing the opening lead (rank is null until tapped), or { kind: 'result' }.
+let picker = null;
 
 // The list order is a per-phone preference, so it lives in localStorage.
 // Private browsing can make localStorage throw; the default is fine then.
@@ -224,6 +227,31 @@ function resultHTML(board) {
   return `${callHTML(bid)}${final.doubled} by ${SEAT_NAMES[final.declarer]}`;
 }
 
+// '+2', '=' or '−1', with a true minus sign.
+function resultText(level, tricks) {
+  return resultLabel(level, tricks).replace('-', '−');
+}
+
+// Our score on the board, signed from our side: '+420' or '−50'.
+function scoreText(board) {
+  const points = ourScore(board);
+  if (points === null) return '';
+  return points > 0 ? `+${points}` : points < 0 ? `−${-points}` : '0';
+}
+
+// For the board list: '4♥−1 by South · ♠K lead · −50'.
+function summaryHTML(board) {
+  const final = contract(board.dealer, board.auction);
+  const parts = [resultHTML(board)];
+  if (final && board.tricks != null) {
+    const bid = `${final.level}${final.strain}`;
+    parts[0] = `${callHTML(bid)}${final.doubled}${resultText(final.level, board.tricks)} by ${SEAT_NAMES[final.declarer]}`;
+  }
+  if (board.lead) parts.push(`${cardHTML(board.lead)} lead`);
+  if (final && board.tricks != null) parts.push(scoreText(board));
+  return parts.join(' · ');
+}
+
 // 'Wed, Oct 14, 2026 · 5 of 18 boards · Pair 3 · with Alex'
 function sessionDetailsHTML(s) {
   const recorded = s.boards.length;
@@ -338,7 +366,7 @@ function renderBoardList() {
       content: `
         <span class="number">${board.number}</span>
         <span class="summary">
-          <span class="title">${resultHTML(board)}${board.lead ? ` · ${cardHTML(board.lead)} lead` : ''}</span>
+          <span class="title">${summaryHTML(board)}</span>
           <span class="details">Dealer ${board.dealer} · Vul ${board.vulnerability} · We sit ${board.direction}</span>
         </span>`,
     }))
@@ -373,9 +401,9 @@ function renderBoard(board) {
   const { dealer, auction } = board;
   const legal = legalCalls(dealer, auction);
   const final = contract(dealer, auction);
-  // A lead (or choosing one) means the auction is over, even if the closing
-  // passes weren't entered.
-  const over = isComplete(auction) || Boolean(board.lead || leadPicker);
+  // A lead or result (or choosing one) means the auction is over, even if
+  // the closing passes weren't entered.
+  const over = isComplete(auction) || Boolean(board.lead || board.tricks != null || picker);
   const toAct = over ? null : nextToAct(dealer, auction);
 
   const seats = TABLE_ORDER.map((seat) => {
@@ -393,9 +421,11 @@ function renderBoard(board) {
   for (const call of auction) cells.push(`<div>${callHTML(call)}</div>`);
   if (toAct) cells.push('<div class="cursor">?</div>');
 
+  const score = final && board.tricks != null ? ` · ${scoreText(board)}` : '';
   const status = toAct
     ? `${SEAT_NAMES[toAct]} to call`
-    : `<strong>${resultHTML(board)}</strong>`;
+    : `<strong>${resultHTML(board)}</strong>${score}`;
+  const resultLabelHTML = final && board.tricks != null ? ` ${resultText(final.level, board.tricks)}` : '';
 
   const bidButton = (bid) =>
     `<button class="${isRed(bid) ? 'red' : ''}" data-call="${bid}"${legal.has(bid) ? '' : ' disabled'}>${bidLabel(bid)}</button>`;
@@ -437,10 +467,12 @@ function renderBoard(board) {
       <div class="calls">${cells.join('')}</div>
     </section>
     <div class="status-row">
+      <button class="lead" data-action="lead"${final && !picker ? '' : ' disabled'}>Lead${board.lead ? ` ${cardHTML(board.lead)}` : ''}</button>
       <p class="status">${status}</p>
-      <button class="lead" data-action="lead"${final && !leadPicker ? '' : ' disabled'}>Lead${board.lead ? ` ${cardHTML(board.lead)}` : ''}</button>
+      <button class="result" data-action="result"${final && !picker ? '' : ' disabled'}>Result${resultLabelHTML}</button>
     </div>
-    ${leadPicker ? leadPickerHTML(board, final) : `
+    ${picker?.kind === 'lead' ? leadPickerHTML(board, final)
+      : picker?.kind === 'result' ? resultPickerHTML(board, final) : `
     <div class="box">${BIDS.map(bidButton).join('')}</div>
     <div class="specials">
       ${callButton('P', 'Pass', 'pass')}
@@ -459,19 +491,42 @@ function renderBoard(board) {
 function leadPickerHTML(board, final) {
   const leader = seatAfter(final.declarer);
   const rankButton = (rank) =>
-    `<button class="${rank === leadPicker.rank ? 'on' : ''}" data-action="lead-rank" data-rank="${rank}">${rankLabel(rank)}</button>`;
+    `<button class="${rank === picker.rank ? 'on' : ''}" data-action="lead-rank" data-rank="${rank}">${rankLabel(rank)}</button>`;
   const suitButton = (suit) => {
-    const classes = [suit === 'H' || suit === 'D' ? 'red' : '', board.lead === `${suit}${leadPicker.rank}` ? 'on' : ''];
-    return `<button class="${classes.join(' ').trim()}" data-action="lead-suit" data-suit="${suit}"${leadPicker.rank ? '' : ' disabled'}>${SYMBOLS[suit]}</button>`;
+    const classes = [suit === 'H' || suit === 'D' ? 'red' : '', board.lead === `${suit}${picker.rank}` ? 'on' : ''];
+    return `<button class="${classes.join(' ').trim()}" data-action="lead-suit" data-suit="${suit}"${picker.rank ? '' : ' disabled'}>${SYMBOLS[suit]}</button>`;
   };
   return `
-    <div class="lead-picker">
+    <div class="picker">
       <p>${SEAT_NAMES[leader]} leads against ${resultHTML(board)}</p>
-      <div class="ranks">${RANKS.map(rankButton).join('')}</div>
+      <div class="grid">${RANKS.map(rankButton).join('')}</div>
       <div class="suits">${['C', 'D', 'H', 'S'].map(suitButton).join('')}</div>
-      <div class="lead-actions">
+      <div class="picker-actions">
         ${board.lead ? '<button class="secondary" data-action="remove-lead">Remove lead</button>' : ''}
-        <button class="secondary" data-action="cancel-lead">Cancel</button>
+        <button class="secondary" data-action="close-picker">Cancel</button>
+      </div>
+    </div>`;
+}
+
+// Every possible result fits, 0 to 13 tricks: a Made row (=, +1 ...) over
+// a Down row (−1, −2 ...), so the common results sit together at the left.
+// Tapping one saves it. The current result, if any, is highlighted.
+function resultPickerHTML(board, final) {
+  const needed = tricksNeeded(final.level);
+  const resultButton = (tricks) =>
+    `<button class="${tricks === board.tricks ? 'on' : ''}" data-action="set-result" data-tricks="${tricks}">${resultText(final.level, tricks)}</button>`;
+  const made = Array.from({ length: 14 - needed }, (_, i) => needed + i);
+  const down = Array.from({ length: needed }, (_, i) => needed - 1 - i);
+  return `
+    <div class="picker">
+      <p>${resultHTML(board)} needs ${needed} tricks</p>
+      <h3>Made</h3>
+      <div class="grid">${made.map(resultButton).join('')}</div>
+      <h3>Down</h3>
+      <div class="grid">${down.map(resultButton).join('')}</div>
+      <div class="picker-actions">
+        ${board.tricks != null ? '<button class="secondary" data-action="remove-result">Remove result</button>' : ''}
+        <button class="secondary" data-action="close-picker">Cancel</button>
       </div>
     </div>`;
 }
@@ -563,8 +618,11 @@ const actions = {
   },
   undo(button, board) {
     board.auction.pop();
-    // Undoing back past the last bid leaves no contract, so nothing to lead against.
-    if (!contract(board.dealer, board.auction)) delete board.lead;
+    // Undoing back past the last bid leaves no contract, so no lead or result.
+    if (!contract(board.dealer, board.auction)) {
+      delete board.lead;
+      delete board.tricks;
+    }
     return true;
   },
   direction(button, board) {
@@ -572,25 +630,39 @@ const actions = {
     return true;
   },
   lead(button, board) {
-    leadPicker = { rank: board.lead?.[1] ?? null };
+    picker = { kind: 'lead', rank: board.lead?.[1] ?? null };
     render();
   },
   'lead-rank'(button) {
-    leadPicker.rank = button.dataset.rank;
+    picker.rank = button.dataset.rank;
     render();
   },
   'lead-suit'(button, board) {
-    board.lead = `${button.dataset.suit}${leadPicker.rank}`;
-    leadPicker = null;
+    board.lead = `${button.dataset.suit}${picker.rank}`;
+    picker = null;
     return true;
   },
   'remove-lead'(button, board) {
     delete board.lead;
-    leadPicker = null;
+    picker = null;
     return true;
   },
-  'cancel-lead'() {
-    leadPicker = null;
+  result() {
+    picker = { kind: 'result' };
+    render();
+  },
+  'set-result'(button, board) {
+    board.tricks = Number(button.dataset.tricks);
+    picker = null;
+    return true;
+  },
+  'remove-result'(button, board) {
+    delete board.tricks;
+    picker = null;
+    return true;
+  },
+  'close-picker'() {
+    picker = null;
     render();
   },
 };
@@ -777,7 +849,7 @@ app.addEventListener('pointerdown', keepAwake);
 async function route() {
   // '#/s/abc/b/17' → ['s', 'abc', 'b', '17']
   const [kind, id, part, boardNumber] = location.hash.slice(2).split('/');
-  leadPicker = null;
+  picker = null;
 
   if (kind === 's') {
     if (session?.id !== id) {

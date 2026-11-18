@@ -28,10 +28,11 @@ styles.css
 manifest.webmanifest   PWA metadata (name, icons, colors)
 sw.js                  service worker (offline cache)
 js/auction.js          bridge rules, no UI code
+js/score.js            duplicate scoring, no UI code
 js/export.js           CSV, JSON and PBN formatting, no UI code
 js/store.js            IndexedDB storage
 js/app.js              screens and event handling
-test/                  unit tests for auction.js and export.js
+test/                  unit tests for auction.js, score.js and export.js
 icons/                 app icons
 scripts/serve.mjs      local dev server
 scripts/make-icons.swift  generates the icon PNGs
@@ -117,7 +118,13 @@ and `NT`.
     trick of a `[Play]` section.
 11. **The screen stays on** on the bidding screen (a screen wake lock),
     and is allowed to sleep on the other screens.
-12. **Not yet:** notes, the result or score, and player names.
+12. **The result** is optional, entered with the Result button: every
+    outcome from 0 to 13 tricks, as a Made row (=, +1 …) over a Down row
+    (−1 …). It's stored as declarer's tricks, as PBN's `[Result]` has
+    it, so a corrected contract re-reads the same tricks. The duplicate
+    score is shown signed from our side. Undoing back past the last bid
+    removes it, like the lead.
+13. **Not yet:** notes and player names.
 
 ## Steps
 

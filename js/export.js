@@ -6,6 +6,7 @@
 // with the closing passes filled in.
 
 import { completeAuction, contract, seatAfter } from './auction.js';
+import { ourScore } from './score.js';
 
 const CRLF = '\r\n'; // CSV and the club's PBN files both use Windows line endings
 
@@ -45,11 +46,12 @@ function csvField(value) {
 
 // One row per board. The auction is the calls from the dealer on,
 // separated by spaces: '1H Pass 2H Pass Pass Pass'. The lead is a card
-// as PBN writes it ('SK', 'HT'), or blank.
+// as PBN writes it ('SK', 'HT'). Tricks are declarer's, and our score is
+// signed from our side. Each is blank if not entered.
 export function toCSV(session) {
   const header = [
     'session', 'date', 'pair', 'partner', 'board', 'dealer', 'vulnerability',
-    'we_sat', 'contract', 'declarer', 'auction', 'lead',
+    'we_sat', 'contract', 'declarer', 'auction', 'lead', 'tricks', 'our_score',
   ];
   const rows = recordedBoards(session).map((board) => {
     const { contract: text, declarer } = contractFields(board);
@@ -57,13 +59,15 @@ export function toCSV(session) {
       session.name, session.date, session.pairNumber, session.partner,
       board.number, board.dealer, board.vulnerability, board.direction,
       text, declarer, completeAuction(board.auction).map(exportCall).join(' '), board.lead,
+      board.tricks, ourScore(board),
     ];
   });
   return [header, ...rows].map((row) => row.map(csvField).join(',')).join(CRLF) + CRLF;
 }
 
 // The sessions as stored, so the file can serve as a backup, with each
-// board's contract and declarer added for convenience. Calls keep the
+// board's contract, declarer and (if the result is entered) our score
+// added for convenience. Calls keep the
 // app's own codes: 'P', 'X', 'XX', '1C' ... '7N'. The auction is as
 // entered; the closing passes are implied.
 export function toJSON(sessions) {
@@ -72,7 +76,10 @@ export function toJSON(sessions) {
     version: 1,
     sessions: sessions.map((session) => ({
       ...session,
-      boards: recordedBoards(session).map((board) => ({ ...board, ...contractFields(board) })),
+      boards: recordedBoards(session).map((board) => {
+        const points = ourScore(board);
+        return { ...board, ...contractFields(board), ...(points !== null && { ourScore: points }) };
+      }),
     })),
   };
   return `${JSON.stringify(data, null, 2)}\n`;
@@ -101,6 +108,7 @@ export function toPBN(session) {
       pbnTag('Vulnerable', board.vulnerability),
       pbnTag('Declarer', declarer),
       pbnTag('Contract', text),
+      ...(board.tricks != null && declarer ? [pbnTag('Result', board.tricks)] : []),
       pbnTag('Auction', board.dealer),
       ...lines,
       ...(board.lead ? [pbnTag('Play', seatAfter(declarer)), `${board.lead} - - -`, '*'] : []),

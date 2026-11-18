@@ -8,7 +8,7 @@
 // When adding a file to the app, add it to FILES and bump the version in
 // CACHE, so the new list is fetched in full.
 
-const CACHE = 'bids-v5';
+const CACHE = 'bids-v6';
 const FILES = [
   './',
   'index.html',
@@ -17,6 +17,7 @@ const FILES = [
   'js/app.js',
   'js/auction.js',
   'js/export.js',
+  'js/score.js',
   'js/store.js',
   'icons/icon-180.png',
   'icons/icon-192.png',

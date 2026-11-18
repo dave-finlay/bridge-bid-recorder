@@ -19,6 +19,9 @@ reviewed afterwards.
   board needs just one Pass.
 - **Opening lead**, optional: tap **Lead**, then a rank and a suit. The
   app works out who led (declarer's left-hand opponent).
+- **Result and score**, optional: tap **Result** and pick from every
+  possible outcome (=, +1 … or −1 …). The duplicate score is shown signed
+  from our side: +420 if we made it, −50 if we went down.
 - **Keeps the screen on** while you're entering an auction, so the phone
   doesn't lock mid-auction. The board list lets it sleep again.
 - **Dealer and vulnerability** follow the board number on the standard
@@ -51,9 +54,9 @@ clearing Safari's website data, deletes the sessions stored in it.
    direction you sat on the last board. Tap the board number to pick
    another, or **NS / EW** to change direction.
 3. Tap the calls in order, starting with the dealer's. When the opening
-   lead is known, tap **Lead** to record it (it replaces the bidding box
-   until you pick a card or cancel). **OK** goes back to the list;
-   everything is saved as you tap.
+   lead is known, tap **Lead** to record it; after play, tap **Result**.
+   Each replaces the bidding box until you pick or cancel. **OK** goes
+   back to the list; everything is saved as you tap.
 
 In the board list, tap a board to edit it and swipe left to delete it.
 On the bidding screen, ‹ › move between boards, while the board number
@@ -68,18 +71,20 @@ with the closing passes filled in.
 **CSV**: one row per board, for a spreadsheet.
 
 ```
-session,date,pair,partner,board,dealer,vulnerability,we_sat,contract,declarer,auction,lead
-Evening Club,2026-10-14,3,Alex,13,N,All,NS,4H,N,1H X 4H Pass Pass Pass,ST
+session,date,pair,partner,board,dealer,vulnerability,we_sat,contract,declarer,auction,lead,tricks,our_score
+Evening Club,2026-10-14,3,Alex,13,N,All,NS,4H,N,1H X 4H Pass Pass Pass,ST,9,-100
 ```
 
 **JSON**: sessions exactly as stored, plus each board's contract and
 declarer, so it doubles as a backup. Calls use the app's own codes:
 `P`, `X`, `XX`, and `1C` to `7N`. A lead is a card such as `ST` (the
-ten of spades).
+ten of spades), `tricks` are declarer's, and `ourScore` is added when
+the result is entered.
 
 **PBN**: [Portable Bridge Notation](https://www.tistis.nl/pbn/), with
-each board's identifying tags, its `[Auction]`, and the lead (if
-entered) as the first trick of a `[Play]` section. Clubs typically
+each board's identifying tags, its `[Auction]`, the `[Result]` (tricks
+taken by declarer) and the lead as the first trick of a `[Play]`
+section, if entered. Clubs typically
 publish a PBN hand record with the deals and results but no auctions;
 this one can be read alongside it, board by board.
 
@@ -91,6 +96,7 @@ this one can be read alongside it, board by board.
 [Vulnerable "All"]
 [Declarer "N"]
 [Contract "4H"]
+[Result "9"]
 [Auction "N"]
 1H X 4H Pass
 Pass Pass
@@ -119,11 +125,12 @@ download instead.
 |---|---|
 | `index.html`, `styles.css` | The page and its styles |
 | `js/auction.js` | Bridge rules: dealer, vulnerability, legal calls, end of auction, contract |
+| `js/score.js` | Duplicate scoring |
 | `js/export.js` | CSV, JSON and PBN formatting |
 | `js/store.js` | Storage on the phone (IndexedDB) |
 | `js/app.js` | Screens and event handling |
 | `sw.js`, `manifest.webmanifest` | Offline support and Home Screen install |
-| `test/` | Unit tests for `auction.js` and `export.js` |
+| `test/` | Unit tests for `auction.js`, `score.js` and `export.js` |
 | `scripts/` | The dev server and the icon generator |
 | `PLAN.md` | The design and the steps it was built in |
 
