@@ -92,10 +92,11 @@ export const HELP = {
     <h3>The board</h3>
     <ul>
       <li><b>‹ ›</b> move to the previous or next board.</li>
-      <li><b>Tap the board number</b> to pick another. On a blank board
-        that opens the board you pick; on a board with calls it
-        <i>renumbers</i> it, for an auction recorded under the wrong
-        number.</li>
+      <li><b>Tap the board number</b> to change it. On a blank board, that
+        takes you to the board you pick. If you've already entered calls,
+        they move to the board you pick: use this when you've recorded an
+        auction under the wrong number. It won't overwrite a board that
+        already has an auction.</li>
       <li><b>Dealer</b> and <b>Vul</b> follow the board number; change them
         only if the board says otherwise.</li>
       <li><b>NS / EW</b>: which way you sat on this board.</li>
