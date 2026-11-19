@@ -49,6 +49,7 @@ const SYMBOLS = { C: '♣︎', D: '♦︎', H: '♥︎', S: '♠︎', N: 'NT' };
 const CHEVRON_LEFT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
 const CHEVRON_RIGHT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>';
 const INFO = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M12 11v6M12 7.2v.1"/></svg>';
+const CLOSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 const INFO_BUTTON = `<button class="info" data-action="help" aria-label="Help">${INFO}</button>`;
 const CHEVRON_DOWN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
 const FLAG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4h12l-2.5 4 2.5 4H5"/></svg>';
@@ -556,15 +557,19 @@ function render() {
   if (helpOpen) app.insertAdjacentHTML('beforeend', helpHTML());
 }
 
-// The screen's help, over it. Tapping outside the card closes it too.
+// The screen's help, over it. The × stays put while the text scrolls
+// under it; Done at the end and tapping outside the card close it too.
 function helpHTML() {
   const key = screen === 'new' || screen === 'edit' ? 'form' : screen;
   return `
     <div class="help" role="dialog" aria-label="Help">
       <button class="help-backdrop" data-action="close-help" aria-label="Close help" tabindex="-1"></button>
       <div class="help-card">
-        ${HELP[key]}
-        <button class="primary" data-action="close-help">Done</button>
+        <button class="help-close" data-action="close-help" aria-label="Close help">${CLOSE}</button>
+        <div class="help-body">
+          ${HELP[key]}
+          <button class="primary" data-action="close-help">Done</button>
+        </div>
       </div>
     </div>`;
 }

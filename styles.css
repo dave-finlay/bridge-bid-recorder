@@ -427,12 +427,14 @@ button {
   background: rgb(0 0 0 / 0.4);
 }
 
+/* The card holds the × in its corner and the help text, which scrolls. */
 .help-card {
   position: relative;
+  display: flex;
+  flex-direction: column;
   max-width: 480px;
   max-height: 100%;
-  overflow-y: auto;
-  padding: 4px 18px 18px;
+  overflow: hidden;
   border-radius: 14px;
   background: var(--surface);
   color: var(--text);
@@ -440,9 +442,40 @@ button {
   text-align: left;
 }
 
+.help-body {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 18px 18px;
+}
+
+.help-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 16px;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.help-close svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 2.5;
+}
+
 /* .help raises these above the list screens' own heading styles. */
 .help .help-card h2 {
-  margin: 14px 0 6px;
+  margin: 14px 32px 6px 0; /* clear of the × */
   color: var(--text);
   font-size: 20px;
   font-weight: 700;
