@@ -1,7 +1,7 @@
 {
   "name": "Bridge Bid Recorder",
   "short_name": "Bids",
-  "description": "Record the auction on each board at the bridge table.",
+  "description": "Note the bidding and opening lead at the bridge table with a tap per call.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

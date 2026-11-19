@@ -1,7 +1,8 @@
 # Bridge Bid Recorder: plan
 
-An iPhone web app (PWA) for recording the auction on each board at the
-bridge table, so the boards can be reviewed later. It works offline and
+An iPhone web app (PWA) that makes it quick for a player to write down
+the auction and opening lead on each board at the bridge table, a tap
+per call, so the boards can be reviewed later and shared with partner. It works offline and
 exports to CSV, JSON or PBN.
 
 We build it one step at a time. Each step ends with a review: read

@@ -1,8 +1,10 @@
 # Bridge Bid Recorder
 
-An iPhone web app for recording the auction on every board at a duplicate
-bridge game, quickly enough to do at the table, so the bidding can be
-reviewed afterwards.
+An iPhone web app that makes it quick to write down the auction and
+opening lead on every board at a duplicate bridge game: one tap per call.
+It's faster and less distracting than pen and paper, and afterwards the
+session is easy to review with the club's hand records or to share with
+your partner.
 
 **Use it:** <https://dave-finlay.github.io/bridge-bid-recorder/>
 

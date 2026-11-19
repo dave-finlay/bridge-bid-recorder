@@ -302,7 +302,7 @@ function renderSessionList() {
   app.className = 'list-screen';
   app.innerHTML = `
     <div class="title-row"><h1>Bridge Bid Recorder</h1>${INFO_BUTTON}</div>
-    <p class="subtitle">The bidding on every board, recorded at the table for review afterwards.</p>
+    <p class="subtitle">Note the bidding and opening lead at the table, a tap at a time.</p>
     <button class="primary" data-action="new-session">New session</button>
     <h2>${sessions.length ? `${sessions.length} session${sessions.length === 1 ? '' : 's'}` : 'Sessions'}</h2>
     ${rows ? `
