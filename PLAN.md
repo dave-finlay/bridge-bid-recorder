@@ -134,7 +134,18 @@ and `NT`.
     Screen web app open files directly, so it's AirDrop → Save to Files →
     Import. Everything is validated, auctions included; a session with
     the same id is replaced. No flipping of sides: it's for partners.
-15. **Not yet:** notes and player names.
+15. **Help on every screen**: an ⓘ button opens a panel saying what the
+    screen is for and what each action does, hidden ones included (swipe
+    to delete, long-press to flag, renumbering with the board picker).
+    The text is in `js/help.js`; keep it in step with this plan and the
+    README.
+16. **Counts**: the sessions list shows how many sessions there are; a
+    session's board list shows boards recorded and, with a board count
+    set, how many are to go.
+17. **The board list opens on Recent** for each session. Board # holds
+    while moving between the list and its boards, and isn't remembered
+    after that.
+18. **Not yet:** notes and player names.
 
 ## Steps
 

@@ -35,6 +35,7 @@ import {
 } from './auction.js';
 import { fileName, fromJSON, toCSV, toJSON, toPBN } from './export.js';
 import { ourScore, resultLabel, tricksNeeded } from './score.js';
+import { HELP } from './help.js';
 import * as store from './store.js';
 
 const app = document.getElementById('app');
@@ -47,11 +48,12 @@ const VULNERABILITIES = ['None', 'NS', 'EW', 'All'];
 const SYMBOLS = { C: '♣︎', D: '♦︎', H: '♥︎', S: '♠︎', N: 'NT' };
 const CHEVRON_LEFT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
 const CHEVRON_RIGHT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>';
+const INFO = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/><path d="M12 11v6M12 7.2v.1"/></svg>';
+const INFO_BUTTON = `<button class="info" data-action="help" aria-label="Help">${INFO}</button>`;
 const CHEVRON_DOWN = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
 const FLAG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4h12l-2.5 4 2.5 4H5"/></svg>';
 const LONG_PRESS_MS = 500; // holding a call this long flags it
 const MAX_BOARDS = 36; // boards offered by pickers when the board count isn't known
-const ORDER_KEY = 'boardListOrder';
 const DELETE_WIDTH = 88; // px a row slides left to show its Delete button
 
 // Export formats for one session: the file type and how to write it.
@@ -66,29 +68,13 @@ let sessions = []; // all sessions, newest first, on the list and form screens
 let session; // the session on screen, kept in step with storage
 let number = null; // the board number on the bidding screen
 let draft = null; // a board on screen that hasn't been recorded yet
-let listOrder = readListOrder(); // 'recent' or 'number'
+// The board list's order: 'recent' or 'number'. Each session opens on
+// Recent; Board # holds while moving between the list and its boards.
+let listOrder = 'recent';
+let helpOpen = false; // the screen's help panel is showing
 // The panel in the bidding box's place, if any: { kind: 'lead', rank } while
 // choosing the opening lead (rank is null until tapped), or { kind: 'result' }.
 let picker = null;
-
-// The list order is a per-phone preference, so it lives in localStorage.
-// Private browsing can make localStorage throw; the default is fine then.
-function readListOrder() {
-  try {
-    return localStorage.getItem(ORDER_KEY) ?? 'recent';
-  } catch {
-    return 'recent';
-  }
-}
-
-function writeListOrder(order) {
-  listOrder = order;
-  try {
-    localStorage.setItem(ORDER_KEY, order);
-  } catch {
-    // Not remembered; it still applies until the app is closed.
-  }
-}
 
 function newBoard(boardNumber, direction) {
   return {
@@ -263,12 +249,14 @@ function isFlagged(board) {
   return Boolean(board.flagged || board.flaggedCalls?.length);
 }
 
-// 'Wed, Oct 14, 2026 · 5 of 18 boards · Pair 3 · with Alex'
-function sessionDetailsHTML(s) {
+// 'Wed, Oct 14, 2026 · 5 of 18 boards · Pair 3 · with Alex', with
+// '· 13 to go' after the boards if asked for (on the session's own list).
+function sessionDetailsHTML(s, { toGo = false } = {}) {
   const recorded = s.boards.length;
-  const boards = s.boardCount
+  let boards = s.boardCount
     ? `${recorded} of ${s.boardCount} boards`
     : `${recorded} board${recorded === 1 ? '' : 's'}`;
+  if (toGo && s.boardCount > recorded) boards += ` · ${s.boardCount - recorded} to go`;
   const parts = [formatDate(s.date), boards];
   if (s.pairNumber) parts.push(`Pair ${s.pairNumber}`);
   if (s.partner) parts.push(`with ${s.partner}`);
@@ -312,7 +300,8 @@ function renderSessionList() {
 
   app.className = 'list-screen';
   app.innerHTML = `
-    <h1>Sessions</h1>
+    <div class="title-row"><h1>Sessions</h1>${INFO_BUTTON}</div>
+    ${sessions.length ? `<p class="subtitle">${sessions.length} session${sessions.length === 1 ? '' : 's'}</p>` : ''}
     <button class="primary" data-action="new-session">New session</button>
     ${rows ? `
       <ul class="list">${rows}</ul>
@@ -338,7 +327,7 @@ function renderSessionForm() {
     <header class="list-bar">
       <button class="link" data-action="cancel">Cancel</button>
     </header>
-    <h1>${editing ? 'Edit session' : 'New session'}</h1>
+    <div class="title-row"><h1>${editing ? 'Edit session' : 'New session'}</h1>${INFO_BUTTON}</div>
     <form class="form">
       <label>Name
         <input name="name" list="names" value="${escapeHTML(values.name)}" placeholder="e.g. Evening Club" autocomplete="off">
@@ -394,8 +383,8 @@ function renderBoardList() {
       <button class="link" data-action="sessions">${CHEVRON_LEFT}Sessions</button>
       <button class="link" data-action="edit-session">Edit</button>
     </header>
-    <h1>${escapeHTML(session.name)}</h1>
-    <p class="subtitle">${sessionDetailsHTML(session)}</p>
+    <div class="title-row"><h1>${escapeHTML(session.name)}</h1>${INFO_BUTTON}</div>
+    <p class="subtitle">${sessionDetailsHTML(session, { toGo: true })}</p>
     <button class="primary" data-action="new-board">New board · ${nextBoardNumber()}</button>
     ${rows ? `
       <div class="toggle list-order" role="group" aria-label="Order">
@@ -474,7 +463,10 @@ function renderBoard(board) {
         </label>
         <button data-action="next" aria-label="Next board">${CHEVRON_RIGHT}</button>
       </div>
-      <button class="ok" data-action="ok">OK</button>
+      <div class="bar-end">
+        ${INFO_BUTTON}
+        <button class="ok" data-action="ok">OK</button>
+      </div>
     </header>
     <div class="settings">
       <label>Dealer <select data-field="dealer">${options(SEATS, dealer)}</select></label>
@@ -554,18 +546,41 @@ function resultPickerHTML(board, final) {
 
 function render() {
   switch (screen) {
-    case 'sessions': return renderSessionList();
+    case 'sessions': renderSessionList(); break;
     case 'new':
-    case 'edit': return renderSessionForm();
-    case 'boards': return renderBoardList();
-    case 'board': return renderBoard(findBoard(number) ?? draft);
+    case 'edit': renderSessionForm(); break;
+    case 'boards': renderBoardList(); break;
+    case 'board': renderBoard(findBoard(number) ?? draft); break;
   }
+  if (helpOpen) app.insertAdjacentHTML('beforeend', helpHTML());
+}
+
+// The screen's help, over it. Tapping outside the card closes it too.
+function helpHTML() {
+  const key = screen === 'new' || screen === 'edit' ? 'form' : screen;
+  return `
+    <div class="help" role="dialog" aria-label="Help">
+      <button class="help-backdrop" data-action="close-help" aria-label="Close help" tabindex="-1"></button>
+      <div class="help-card">
+        ${HELP[key]}
+        <button class="primary" data-action="close-help">Done</button>
+      </div>
+    </div>`;
 }
 
 // What each button does. Board actions get the board on screen. An action
 // returns true if it changed that board, which then gets saved and redrawn.
 // Navigation returns nothing and lets the hashchange redraw.
 const actions = {
+  help() {
+    helpOpen = true;
+    render();
+  },
+  'close-help'() {
+    helpOpen = false;
+    render();
+  },
+
   // Session list
   'new-session'() {
     go('#/new');
@@ -618,7 +633,7 @@ const actions = {
     render();
   },
   order(button) {
-    writeListOrder(button.dataset.order);
+    listOrder = button.dataset.order;
     render();
   },
   export(button) {
@@ -951,6 +966,7 @@ async function route() {
   // '#/s/abc/b/17' → ['s', 'abc', 'b', '17']
   const [kind, id, part, boardNumber] = location.hash.slice(2).split('/');
   picker = null;
+  helpOpen = false;
 
   if (kind === 's') {
     if (session?.id !== id) {
@@ -974,6 +990,7 @@ async function route() {
     }
   } else if (kind === 'sessions' || kind === 'new') {
     screen = kind;
+    listOrder = 'recent'; // the next session opened starts on Recent
     sessions = await store.listSessions();
   } else {
     // Opening the app: go straight to today's session if there is one.

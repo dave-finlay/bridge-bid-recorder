@@ -67,7 +67,11 @@ clearing Safari's website data, deletes the sessions stored in it.
    Each replaces the bidding box until you pick or cancel. **OK** goes
    back to the list; everything is saved as you tap.
 
+Every screen has an **ⓘ** button with help on what it's for and what
+each action does, including the ones you can't see.
+
 In the board list, tap a board to edit it and swipe left to delete it.
+**Recent / Board #** orders the list; each session opens on Recent.
 On the bidding screen, ‹ › move between boards, while the board number
 picker changes the number of the board on screen (for a board recorded
 under the wrong number).
@@ -139,7 +143,8 @@ download instead.
 | `index.html`, `styles.css` | The page and its styles |
 | `js/auction.js` | Bridge rules: dealer, vulnerability, legal calls, end of auction, contract |
 | `js/score.js` | Duplicate scoring |
-| `js/export.js` | CSV, JSON and PBN formatting |
+| `js/export.js` | CSV, JSON and PBN formatting, and reading JSON back in |
+| `js/help.js` | The text of each screen's help panel |
 | `js/store.js` | Storage on the phone (IndexedDB) |
 | `js/app.js` | Screens and event handling |
 | `sw.js`, `manifest.webmanifest` | Offline support and Home Screen install |
