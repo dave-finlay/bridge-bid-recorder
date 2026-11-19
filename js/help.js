@@ -4,9 +4,21 @@
 
 export const HELP = {
   sessions: `
+    <h2>Bridge Bid Recorder</h2>
+    <p>Club hand records show the deals and every table's result, but not
+      the bidding. This app fills that gap: it records the auction on each
+      board as it happens, both sides' calls at one tap each, so you and
+      your partner can go over your bidding afterwards with the hand
+      records.</p>
+    <p>It tells you nothing that pencil and paper wouldn't. There are no
+      alert reminders or hints, so it gives no help during the game.</p>
+    <p>You can also note the opening lead, the result and score, and flag
+      calls or boards to talk about later. Everything stays on your phone,
+      with no account or server; export a session to review it or to send
+      it to your partner.</p>
     <h2>Sessions</h2>
-    <p>Every game you've recorded, newest first. The app opens straight
-      to today's session when there is one.</p>
+    <p>Every game you've recorded, newest first, with the count above the
+      list. The app opens straight to today's session when there is one.</p>
     <h3>Actions</h3>
     <ul>
       <li><b>New session</b> starts recording a game.</li>
