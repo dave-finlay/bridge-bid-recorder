@@ -37,6 +37,11 @@ reviewed afterwards.
   tap New board.
 - **Export** a session as CSV, JSON or PBN through the iOS share sheet
   (AirDrop, Mail, Save to Files), or back up every session as JSON.
+- **Share with a partner.** Send them the session's JSON export by
+  AirDrop; they save it to Files, then tap **Import a session** on the
+  sessions list. Sending the same session again replaces their copy.
+  Imported sessions are as recorded, so "us" and the scores are from
+  the sender's side. Import also restores a backup.
 - **Works offline** once installed, and keeps everything on the phone.
   There is no server and no account.
 

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { contractFields, exportCall, fileName, toCSV, toJSON, toPBN } from '../js/export.js';
+import { contractFields, exportCall, fileName, fromJSON, toCSV, toJSON, toPBN } from '../js/export.js';
 
 const board = (number, dealer, vulnerability, direction, auction, lead, tricks) => ({
   number, dealer, vulnerability, direction, auction: auction ? auction.split(' ') : [],
@@ -121,4 +121,24 @@ test('PBN: tags, auction four calls to a line, and the lead as a first trick', (
 test('PBN escapes quotes in tag values', () => {
   const quoted = { ...session, name: 'The "Club"', boards: [board(1, 'N', 'None', 'NS', 'P')] };
   assert.match(toPBN(quoted), /\[Event "The \\"Club\\""\]/);
+});
+
+test('fromJSON reads an export back into the sessions as stored', () => {
+  const [read] = fromJSON(toJSON([session]));
+  const recorded = session.boards.filter((b) => b.auction.length > 0).sort((a, b) => a.number - b.number);
+  assert.deepEqual(read, { ...session, boards: recorded });
+});
+
+test('fromJSON rejects files that are not valid exports', () => {
+  assert.throws(() => fromJSON('not json'), /isn’t a Bridge Bid Recorder export/);
+  assert.throws(() => fromJSON('{"format":"other","sessions":[]}'), /isn’t a Bridge Bid Recorder export/);
+  assert.throws(() => fromJSON('{"format":"bridge-bid-recorder","version":2,"sessions":[]}'), /newer version/);
+  const bad = (change) => {
+    const data = JSON.parse(toJSON([session]));
+    change(data.sessions[0]);
+    return JSON.stringify(data);
+  };
+  assert.throws(() => fromJSON(bad((s) => { s.boards[0].auction = ['1H', '1C']; })), /board 13: illegal call 1C/);
+  assert.throws(() => fromJSON(bad((s) => { s.boards[0].tricks = 14; })), /board 13: bad result/);
+  assert.throws(() => fromJSON(bad((s) => { delete s.date; })), /date is missing/);
 });

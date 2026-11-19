@@ -129,7 +129,12 @@ and `NT`.
     auction flags or unflags it; the flag button beside NS / EW flags the
     whole board. Stored as `flagged: true` and `flaggedCalls` (positions
     in the auction). Undoing a call drops its flag.
-14. **Not yet:** notes and player names.
+14. **Import** reads a JSON export (one session or a backup) picked in
+    Files, for sharing with a partner by AirDrop. iOS won't let a Home
+    Screen web app open files directly, so it's AirDrop → Save to Files →
+    Import. Everything is validated, auctions included; a session with
+    the same id is replaced. No flipping of sides: it's for partners.
+15. **Not yet:** notes and player names.
 
 ## Steps
 

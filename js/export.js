@@ -5,7 +5,7 @@
 // Only recorded boards (at least one call) are exported, in board order,
 // with the closing passes filled in.
 
-import { completeAuction, contract, seatAfter } from './auction.js';
+import { SEATS, completeAuction, contract, legalCalls, seatAfter } from './auction.js';
 import { ourScore } from './score.js';
 
 const CRLF = '\r\n'; // CSV and the club's PBN files both use Windows line endings
@@ -86,6 +86,78 @@ export function toJSON(sessions) {
     })),
   };
   return `${JSON.stringify(data, null, 2)}\n`;
+}
+
+// Reads a JSON export (one session or a full backup) back into sessions
+// to store, for sharing with a partner or restoring a backup. Everything
+// is checked, auctions included, and only stored fields are kept (the
+// contract, declarer and score added on export are dropped). Throws an
+// Error with a message fit to show if the file isn't a valid export.
+export function fromJSON(text) {
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error('That file isn’t a Bridge Bid Recorder export (JSON).');
+  }
+  if (data?.format !== 'bridge-bid-recorder' || !Array.isArray(data.sessions)) {
+    throw new Error('That file isn’t a Bridge Bid Recorder export (JSON).');
+  }
+  if (data.version !== 1) {
+    throw new Error('That file was made by a newer version of the app. Reopen the app to update it, then try again.');
+  }
+  return data.sessions.map(readSession);
+}
+
+function readSession(s) {
+  const check = (ok, what) => {
+    if (!ok) throw new Error(`Couldn’t import “${s?.name ?? 'a session'}”: ${what}.`);
+  };
+  check(typeof s?.id === 'string' && s.id, 'it has no id');
+  check(typeof s.name === 'string', 'it has no name');
+  check(/^\d{4}-\d{2}-\d{2}$/.test(s.date), 'its date is missing');
+  check(s.boardCount == null || Number.isInteger(s.boardCount), 'its board count is wrong');
+  check(Array.isArray(s.boards), 'it has no boards');
+  return {
+    id: s.id,
+    name: s.name,
+    date: s.date,
+    boardCount: s.boardCount ?? null,
+    pairNumber: String(s.pairNumber ?? ''),
+    partner: String(s.partner ?? ''),
+    createdAt: typeof s.createdAt === 'string' ? s.createdAt : new Date().toISOString(),
+    boards: s.boards.map((b) => readBoard(b, (ok, what) => check(ok, `board ${b?.number}: ${what}`))),
+  };
+}
+
+function readBoard(b, check) {
+  check(Number.isInteger(b?.number) && b.number > 0, 'bad board number');
+  check(SEATS.includes(b.dealer), 'bad dealer');
+  check(['None', 'NS', 'EW', 'All'].includes(b.vulnerability), 'bad vulnerability');
+  check(b.direction === 'NS' || b.direction === 'EW', 'bad direction');
+  check(Array.isArray(b.auction), 'no auction');
+  b.auction.forEach((call, i) => check(legalCalls(b.dealer, b.auction.slice(0, i)).has(call), `illegal call ${call}`));
+  const board = {
+    number: b.number,
+    dealer: b.dealer,
+    vulnerability: b.vulnerability,
+    direction: b.direction,
+    auction: [...b.auction],
+  };
+  if (b.lead != null) {
+    check(/^[CDHS][2-9TJQKA]$/.test(b.lead), 'bad lead');
+    board.lead = b.lead;
+  }
+  if (b.tricks != null) {
+    check(Number.isInteger(b.tricks) && b.tricks >= 0 && b.tricks <= 13, 'bad result');
+    board.tricks = b.tricks;
+  }
+  if (b.flagged) board.flagged = true;
+  if (b.flaggedCalls?.length) {
+    check(b.flaggedCalls.every((i) => Number.isInteger(i) && i >= 0 && i < b.auction.length), 'bad flags');
+    board.flaggedCalls = [...b.flaggedCalls];
+  }
+  return board;
 }
 
 function pbnTag(name, value) {

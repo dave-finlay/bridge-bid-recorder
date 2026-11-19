@@ -33,7 +33,7 @@ import {
   sideOf,
   vulnerabilityForBoard,
 } from './auction.js';
-import { fileName, toCSV, toJSON, toPBN } from './export.js';
+import { fileName, fromJSON, toCSV, toJSON, toPBN } from './export.js';
 import { ourScore, resultLabel, tricksNeeded } from './score.js';
 import * as store from './store.js';
 
@@ -125,7 +125,7 @@ function formatDate(date) {
 }
 
 function save() {
-  store.saveSession(session).catch((error) => showError(`Couldn't save: ${error.message}`));
+  store.saveSession(session).catch((error) => showMessage(`Couldn't save: ${error.message}`));
 }
 
 // Saves a change to the board on screen. A draft joins the session once
@@ -139,7 +139,7 @@ function commit(board) {
   save();
 }
 
-function showError(message) {
+function showMessage(message) {
   const toast = document.createElement('div');
   toast.className = 'toast';
   toast.textContent = message;
@@ -316,7 +316,9 @@ function renderSessionList() {
     <button class="primary" data-action="new-session">New session</button>
     ${rows ? `
       <ul class="list">${rows}</ul>
-      <button class="secondary" data-action="backup">Back up all sessions (JSON)</button>` : '<p class="empty">No sessions yet.</p>'}`;
+      <button class="secondary" data-action="backup">Back up all sessions (JSON)</button>` : '<p class="empty">No sessions yet.</p>'}
+    <button class="secondary" data-action="import">Import a session (JSON)</button>
+    <input type="file" accept=".json,application/json" hidden data-import>`;
 }
 
 // The form for a new session, or for editing the one on screen.
@@ -587,6 +589,9 @@ const actions = {
   backup() {
     return shareFile(`bridge-bids-backup-${today()}.json`, 'application/json', toJSON(sessions));
   },
+  import() {
+    app.querySelector('[data-import]').click(); // opens the Files picker
+  },
 
   // Session form
   cancel() {
@@ -711,7 +716,7 @@ app.addEventListener('click', async (event) => {
     try {
       changed = await actions[button.dataset.action]?.(button, board);
     } catch (error) {
-      showError(error.message);
+      showMessage(error.message);
     }
   }
   if (changed) {
@@ -721,6 +726,12 @@ app.addEventListener('click', async (event) => {
 });
 
 app.addEventListener('change', (event) => {
+  if ('import' in event.target.dataset) {
+    const [file] = event.target.files;
+    event.target.value = ''; // so picking the same file again still counts
+    importFile(file).catch((error) => showMessage(error.message));
+    return;
+  }
   if (screen !== 'board') return;
   const board = findBoard(number) ?? draft;
   if ('renumber' in event.target.dataset) {
@@ -734,6 +745,30 @@ app.addEventListener('change', (event) => {
   render();
 });
 
+// Imports a JSON export picked in Files: a partner's session sent by
+// AirDrop, or a backup. A session already here (same id, as when the same
+// session is sent again) is replaced. One session opens; more show in
+// the list.
+async function importFile(file) {
+  if (!file) return;
+  const imported = fromJSON(await file.text());
+  if (imported.length === 0) throw new Error('That file has no sessions in it.');
+  let replaced = 0;
+  for (const s of imported) {
+    if (await store.getSession(s.id)) replaced++;
+    await store.saveSession(s);
+  }
+  const what = imported.length === 1 ? `“${imported[0].name}”` : `${imported.length} sessions`;
+  showMessage(`Imported ${what}${replaced ? ` (replacing ${replaced === 1 && imported.length === 1 ? 'the earlier copy' : `${replaced} already here`})` : ''}.`);
+  if (imported.length === 1) {
+    session = null; // reload it from storage
+    go(`#/s/${imported[0].id}`);
+  } else {
+    sessions = await store.listSessions();
+    render();
+  }
+}
+
 // Sets the number of the board on screen. A blank board just becomes the
 // chosen board (opening it if it's recorded). A board with calls moves to
 // the new number, unless that board is already recorded.
@@ -744,7 +779,7 @@ function renumber(board, target) {
     return;
   }
   if (findBoard(target)) {
-    showError(`Board ${target} already has an auction. To move this one there, delete board ${target} first.`);
+    showMessage(`Board ${target} already has an auction. To move this one there, delete board ${target} first.`);
     render(); // puts the picker back
     return;
   }
@@ -776,7 +811,7 @@ app.addEventListener('submit', async (event) => {
     await store.saveSession(session);
     go(`#/s/${session.id}`);
   } catch (error) {
-    showError(`Couldn't save: ${error.message}`);
+    showMessage(`Couldn't save: ${error.message}`);
   }
 });
 
@@ -950,15 +985,15 @@ async function route() {
 }
 
 window.addEventListener('hashchange', () => {
-  route().catch((error) => showError(error.message));
+  route().catch((error) => showMessage(error.message));
 });
 store.requestPersistence();
 // Offline support (sw.js). Browsers only allow it over HTTPS, so it runs on
 // the hosted app; it's skipped on localhost, where a cached copy would hide
 // each change until a second reload.
 if ('serviceWorker' in navigator && location.hostname !== 'localhost') {
-  navigator.serviceWorker.register('sw.js').catch((error) => showError(`Offline mode unavailable: ${error.message}`));
+  navigator.serviceWorker.register('sw.js').catch((error) => showMessage(`Offline mode unavailable: ${error.message}`));
 }
 // The scratch session from development is no longer used.
 store.deleteSession('scratch').catch(() => {});
-route().catch((error) => showError(`Couldn't start: ${error.message}`));
+route().catch((error) => showMessage(`Couldn't start: ${error.message}`));
