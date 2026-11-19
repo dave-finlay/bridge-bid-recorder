@@ -10,10 +10,11 @@ const c = (text) => {
 test('tricksNeeded and resultLabel', () => {
   assert.equal(tricksNeeded(1), 7);
   assert.equal(tricksNeeded(7), 13);
-  assert.equal(resultLabel(3, 9), '=');
-  assert.equal(resultLabel(3, 10), '+1');
+  assert.equal(resultLabel(3, 9), '3');
+  assert.equal(resultLabel(3, 10), '4');
   assert.equal(resultLabel(4, 7), '-3');
-  assert.equal(resultLabel(1, 13), '+6');
+  assert.equal(resultLabel(1, 13), '7');
+  assert.equal(resultLabel(7, 13), '7');
   assert.equal(resultLabel(7, 0), '-13');
 });
 

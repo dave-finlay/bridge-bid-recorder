@@ -119,8 +119,9 @@ and `NT`.
 11. **The screen stays on** on the bidding screen (a screen wake lock),
     and is allowed to sleep on the other screens.
 12. **The result** is optional, entered with the Result button: every
-    outcome from 0 to 13 tricks, as a Made row (=, +1 …) over a Down row
-    (−1 …). It's stored as declarer's tricks, as PBN's `[Result]` has
+    outcome from 0 to 13 tricks, as a Made row (the level made: 3, 4 …
+    for 3NT) over a Down row (−1 …), as a Bridgemate takes them, and
+    shown as "made 4" or "down 1". It's stored as declarer's tricks, as PBN's `[Result]` has
     it, so a corrected contract re-reads the same tricks. The duplicate
     score is shown signed from our side. Undoing back past the last bid
     removes it, like the lead.

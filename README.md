@@ -20,7 +20,8 @@ reviewed afterwards.
 - **Opening lead**, optional: tap **Lead**, then a rank and a suit. The
   app works out who led (declarer's left-hand opponent).
 - **Result and score**, optional: tap **Result** and pick from every
-  possible outcome (=, +1 … or −1 …). The duplicate score is shown signed
+  possible outcome, entered as on a Bridgemate: the level made (3, 4 …
+  for 3NT) or the undertricks (−1 …). The duplicate score is shown signed
   from our side: +420 if we made it, −50 if we went down.
 - **Flag for review.** Long-press a call in the auction to flag it
   (again to clear it), or tap the flag by NS / EW to flag the whole

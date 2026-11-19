@@ -229,9 +229,15 @@ function resultHTML(board) {
   return `${callHTML(bid)}${final.doubled} by ${SEAT_NAMES[final.declarer]}`;
 }
 
-// '+2', '=' or '−1', with a true minus sign.
+// A result button's label, as a Bridgemate takes it: '4' (made 4) or
+// '−1', with a true minus sign.
 function resultText(level, tricks) {
   return resultLabel(level, tricks).replace('-', '−');
+}
+
+// 'made 4' or 'down 1', as it's said at the table.
+function resultWords(level, tricks) {
+  return tricks >= tricksNeeded(level) ? `made ${tricks - 6}` : `down ${tricksNeeded(level) - tricks}`;
 }
 
 // Our score on the board, signed from our side: '+420' or '−50'.
@@ -241,16 +247,14 @@ function scoreText(board) {
   return points > 0 ? `+${points}` : points < 0 ? `−${-points}` : '0';
 }
 
-// For the board list: '4♥−1 by South · ♠K lead · −50'.
+// For the board list: '4♥ by South · down 1 · ♠K lead · −50'.
 function summaryHTML(board) {
   const final = contract(board.dealer, board.auction);
+  const hasResult = final && board.tricks != null;
   const parts = [resultHTML(board)];
-  if (final && board.tricks != null) {
-    const bid = `${final.level}${final.strain}`;
-    parts[0] = `${callHTML(bid)}${final.doubled}${resultText(final.level, board.tricks)} by ${SEAT_NAMES[final.declarer]}`;
-  }
+  if (hasResult) parts.push(resultWords(final.level, board.tricks));
   if (board.lead) parts.push(`${cardHTML(board.lead)} lead`);
-  if (final && board.tricks != null) parts.push(scoreText(board));
+  if (hasResult) parts.push(scoreText(board));
   return parts.join(' · ');
 }
 
@@ -435,7 +439,10 @@ function renderBoard(board) {
   const status = toAct
     ? `${SEAT_NAMES[toAct]} to call`
     : `<strong>${resultHTML(board)}</strong>${score}`;
-  const resultLabelHTML = final && board.tricks != null ? ` ${resultText(final.level, board.tricks)}` : '';
+  // 'Result' until one is entered, then 'Made 4' or 'Down 1'.
+  const resultButtonText = final && board.tricks != null
+    ? resultWords(final.level, board.tricks).replace(/^./, (c) => c.toUpperCase())
+    : 'Result';
 
   const bidButton = (bid) =>
     `<button class="${isRed(bid) ? 'red' : ''}" data-call="${bid}"${legal.has(bid) ? '' : ' disabled'}>${bidLabel(bid)}</button>`;
@@ -480,7 +487,7 @@ function renderBoard(board) {
     <div class="status-row">
       <button class="lead" data-action="lead"${final && !picker ? '' : ' disabled'}>Lead${board.lead ? ` ${cardHTML(board.lead)}` : ''}</button>
       <p class="status">${status}</p>
-      <button class="result" data-action="result"${final && !picker ? '' : ' disabled'}>Result${resultLabelHTML}</button>
+      <button class="result" data-action="result"${final && !picker ? '' : ' disabled'}>${resultButtonText}</button>
     </div>
     ${picker?.kind === 'lead' ? leadPickerHTML(board, final)
       : picker?.kind === 'result' ? resultPickerHTML(board, final) : `
@@ -519,8 +526,9 @@ function leadPickerHTML(board, final) {
     </div>`;
 }
 
-// Every possible result fits, 0 to 13 tricks: a Made row (=, +1 ...) over
-// a Down row (−1, −2 ...), so the common results sit together at the left.
+// Every possible result fits, 0 to 13 tricks: a Made row (3, 4 ... for a
+// 3-level contract) over a Down row (−1, −2 ...), as a Bridgemate takes
+// them, so the common results sit together at the left.
 // Tapping one saves it. The current result, if any, is highlighted.
 function resultPickerHTML(board, final) {
   const needed = tricksNeeded(final.level);

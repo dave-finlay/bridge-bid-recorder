@@ -1,8 +1,8 @@
 // Duplicate bridge scoring. No UI code, so it can be unit-tested with Node.
 //
 // A result is the tricks declarer took (0 to 13), as PBN's [Result] tag
-// has it. It's shown relative to the contract: '=' when it just made,
-// '+2' with overtricks, '-1' when down.
+// has it. It's shown as a Bridgemate takes it: the level made ('4' for
+// ten tricks) when it made, or the undertricks ('-1') when it went down.
 
 import { contract, isVulnerable, sideOf } from './auction.js';
 
@@ -13,11 +13,10 @@ export function tricksNeeded(level) {
   return level + 6;
 }
 
-// 9 tricks in 3NT → '=', 10 → '+1', 7 → '-2'.
+// 9 tricks in 3NT → '3', 10 → '4', 7 → '-2'.
 export function resultLabel(level, tricks) {
   const over = tricks - tricksNeeded(level);
-  if (over === 0) return '=';
-  return over > 0 ? `+${over}` : `${over}`;
+  return over >= 0 ? `${tricks - 6}` : `${over}`;
 }
 
 // Declarer's score: positive if it made, negative if it went down.
